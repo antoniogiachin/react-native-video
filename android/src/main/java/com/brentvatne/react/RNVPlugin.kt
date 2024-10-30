@@ -9,7 +9,7 @@ interface RNVPlugin {
      * @param id: a random string identifying the player
      * @param player: the instantiated player reference
      */
-    fun onInstanceCreated(id: String, player: Any)
+    fun onInstanceCreated(id: String, player: Any, playerView: Any)
 
     /**
      * Function called when a player should be destroyed
