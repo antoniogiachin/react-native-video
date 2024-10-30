@@ -60,7 +60,7 @@ class ReactNativeVideoManager : RNVPlugin {
     }
 
     override fun onInstanceCreated(id: String, player: Any, playerView: Any) {
-        pluginList.forEach { it.onInstanceCreated(id, player. playerView) }
+        pluginList.forEach { it.onInstanceCreated(id, player, playerView) }
     }
 
     override fun onInstanceRemoved(id: String, player: Any) {
