@@ -853,7 +853,7 @@ public class ReactExoplayerView extends FrameLayout implements
                 .setLoadControl(loadControl)
                 .setMediaSourceFactory(mediaSourceFactory)
                 .build();
-        ReactNativeVideoManager.Companion.getInstance().onInstanceCreated(instanceId, player);
+        ReactNativeVideoManager.Companion.getInstance().onInstanceCreated(instanceId, player, exoPlayerView);
         refreshDebugState();
         player.addListener(self);
         player.setVolume(muted ? 0.f : audioVolume * 1);

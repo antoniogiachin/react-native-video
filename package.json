@@ -34,7 +34,9 @@
         "release-it": "^16.2.1",
         "typescript": "5.1.6"
     },
-    "dependencies": {},
+    "dependencies": {
+        "react-native-device-info": "^13.1.0"
+    },
     "peerDependencies": {
         "react": "*",
         "react-native": "*"
