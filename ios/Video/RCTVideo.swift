@@ -102,9 +102,7 @@ class RCTVideo: UIView, RCTVideoPlayerViewControllerDelegate, RCTPlayerObserverH
         private let _videoCache: RCTVideoCachingHandler = .init()
     #endif
 
-    #if os(iOS)
-        private var _pip: RCTPictureInPicture?
-    #endif
+    private var _pip: RCTPictureInPicture?
 
     // Events
     @objc var onVideoLoadStart: RCTDirectEventBlock?
@@ -1540,7 +1538,9 @@ class RCTVideo: UIView, RCTVideoPlayerViewControllerDelegate, RCTPlayerObserverH
 
         guard _isPlaying != isPlaying else { return }
         _isPlaying = isPlaying
-        _paused = !isPlaying
+        if _controls {
+            _paused = !isPlaying
+        }
         onVideoPlaybackStateChanged?(["isPlaying": isPlaying, "isSeeking": self._pendingSeek == true, "target": reactTag as Any])
     }
 

@@ -1,5 +1,28 @@
 
 
+# [6.10.0](https://github.com/TheWidlarzGroup/react-native-video/compare/v6.9.1...v6.10.0) (2025-01-22)
+
+
+### Bug Fixes
+
+* **android:** support RN 0.77 ([#4386](https://github.com/TheWidlarzGroup/react-native-video/issues/4386)) ([8b952e7](https://github.com/TheWidlarzGroup/react-native-video/commit/8b952e709a6535325ffbfab9358538d06b308a15))
+* **ios:** fix paused video by default ([#4379](https://github.com/TheWidlarzGroup/react-native-video/issues/4379)) ([3d3eba9](https://github.com/TheWidlarzGroup/react-native-video/commit/3d3eba97e814519cd79836208af25b948059795b))
+* **tvOS:** fix tvos compile error ([#4369](https://github.com/TheWidlarzGroup/react-native-video/issues/4369)) ([6c3af99](https://github.com/TheWidlarzGroup/react-native-video/commit/6c3af99979c847887796baefd421cb5a50ed32ba))
+* **windows:** conversion of string to Stretch enum ([#4381](https://github.com/TheWidlarzGroup/react-native-video/issues/4381)) ([d90bf47](https://github.com/TheWidlarzGroup/react-native-video/commit/d90bf47df58e61a8946f4762659f3e5613aba95d))
+
+
+### Features
+
+* **web:** implement web pip method and event ([#4370](https://github.com/TheWidlarzGroup/react-native-video/issues/4370)) ([8dc10fd](https://github.com/TheWidlarzGroup/react-native-video/commit/8dc10fd4b774b2cc91bf75f4f1680b63411b8559))
+
+## [6.9.1](https://github.com/TheWidlarzGroup/react-native-video/compare/v6.9.0...v6.9.1) (2025-01-10)
+
+
+### Bug Fixes
+
+* avoid memory leak on iOS ([#4355](https://github.com/TheWidlarzGroup/react-native-video/issues/4355)) ([424f4ee](https://github.com/TheWidlarzGroup/react-native-video/commit/424f4eeddea989392e25c52f45a9a0281ead6fe1))
+* NPE in setEnterPictureInPictureOnLeave for unsupported Android versions ([#4362](https://github.com/TheWidlarzGroup/react-native-video/issues/4362)) ([3924b5e](https://github.com/TheWidlarzGroup/react-native-video/commit/3924b5e295ed64c97284f4665bc294066a83574a))
+
 # [6.9.0](https://github.com/TheWidlarzGroup/react-native-video/compare/v6.8.2...v6.9.0) (2025-01-04)
 
 
