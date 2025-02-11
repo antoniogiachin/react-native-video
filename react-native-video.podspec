@@ -49,6 +49,8 @@ Pod::Spec.new do |s|
         'OTHER_SWIFT_FLAGS' => '$(inherited) -D USE_VIDEO_CACHING'
       }
     end
+
+    ss.ios.dependency 'RaiPlayerCMCD', '~> 1.1.0'
   end
 
   # Use install_modules_dependencies helper to install the dependencies if React Native version >=0.71.0.

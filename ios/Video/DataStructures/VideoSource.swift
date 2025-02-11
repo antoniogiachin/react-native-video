@@ -13,6 +13,7 @@ struct VideoSource {
     let drm: DRMParams
     var textTracks: [TextTrack] = []
     let adParams: AdParams
+    let cmcd: CMCDParams?
 
     let json: NSDictionary?
 
@@ -59,5 +60,6 @@ struct VideoSource {
             return TextTrack(trackDict as? NSDictionary)
         } ?? []
         adParams = AdParams(json["ad"] as? NSDictionary)
+        cmcd = CMCDParams(json["cmcd"] as? NSDictionary)
     }
 }
