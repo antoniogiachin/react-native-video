@@ -1,1 +1,1 @@
-export declare const writeToPodfile: (projectRoot: string, key: string, value: string) => void;
+export declare const writeToPodfile: (projectRoot: string, key: string, value: string, testApp?: boolean) => void;

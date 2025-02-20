@@ -1,5 +1,6 @@
 import type { WithDefault } from 'react-native/Libraries/Types/CodegenTypes';
 import type { OnAudioFocusChangedData, OnAudioTracksData, OnBandwidthUpdateData, OnBufferData, OnControlsVisibilityChange, OnExternalPlaybackChangeData, OnLoadStartData, OnPictureInPictureStatusChangedData, OnPlaybackRateChangeData, OnPlaybackStateChangedData, OnProgressData, OnSeekData, OnTextTrackDataChangedData, OnTimedMetadataData, OnVideoAspectRatioData, OnVideoErrorData, OnVideoTracksData, OnVolumeChangeData } from '../specs/VideoNativeComponent';
+export type * from '../specs/VideoNativeComponent';
 export type AudioTrack = OnAudioTracksData['audioTracks'][number];
 export type TextTrack = OnTextTracksData['textTracks'][number];
 export type VideoTrack = OnVideoTracksData['videoTracks'][number];

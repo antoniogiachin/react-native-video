@@ -11,6 +11,7 @@ export type ReactVideoSourceProperties = {
     uri?: string;
     isNetwork?: boolean;
     isAsset?: boolean;
+    isLocalAssetFile?: boolean;
     shouldCache?: boolean;
     type?: string;
     mainVer?: number;
@@ -26,6 +27,8 @@ export type ReactVideoSourceProperties = {
     textTracksAllowChunklessPreparation?: boolean;
     textTracks?: TextTracks;
     ad?: AdConfig;
+    minLoadRetryCount?: number;
+    bufferConfig?: BufferConfig;
 };
 export type ReactVideoSource = Readonly<Omit<ReactVideoSourceProperties, 'uri'> & {
     uri?: string | NodeRequire;
@@ -223,6 +226,7 @@ export interface ReactVideoProps extends ReactVideoEvents, ViewProps {
     adLanguage?: ISO639_1;
     audioOutput?: AudioOutput;
     automaticallyWaitsToMinimizeStalling?: boolean;
+    /** @deprecated Use source.bufferConfig */
     bufferConfig?: BufferConfig;
     bufferingStrategy?: BufferingStrategyType;
     chapters?: Chapters[];
@@ -240,12 +244,13 @@ export interface ReactVideoProps extends ReactVideoEvents, ViewProps {
     fullscreenOrientation?: EnumValues<FullscreenOrientationType>;
     hideShutterView?: boolean;
     ignoreSilentSwitch?: EnumValues<IgnoreSilentSwitchType>;
+    /** @deprecated Use source.minLoadRetryCount */
     minLoadRetryCount?: number;
     maxBitRate?: number;
     mixWithOthers?: EnumValues<MixWithOthersType>;
     muted?: boolean;
     paused?: boolean;
-    pictureInPicture?: boolean;
+    enterPictureInPictureOnLeave?: boolean;
     playInBackground?: boolean;
     playWhenInactive?: boolean;
     poster?: string | ReactVideoPoster;

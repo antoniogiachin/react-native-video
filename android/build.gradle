@@ -280,6 +280,13 @@ dependencies {
         }
     }
 
+    // For downloading media using ExoPlayer
+    // implementation "androidx.media3:media3-exoplayer-download:1.4.1"
+    implementation 'androidx.work:work-runtime-ktx:2.9.0'
+    implementation "com.jakewharton.retrofit:retrofit2-kotlin-coroutines-adapter:0.9.2"
+    implementation 'com.google.code.gson:gson:2.10.1'
+    implementation("com.squareup.retrofit2:converter-gson:2.9.0")
+
    if (media3_buildFromSource) {
         // For loading data using the OkHttp network stack
         implementation(project(":media-lib-datasource-okhttp"))
