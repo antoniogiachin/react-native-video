@@ -7,6 +7,8 @@ import androidx.media3.common.util.Util
 import androidx.media3.exoplayer.offline.Download
 import com.brentvatne.exoplayer.download.model.RaiDownloadItem
 import com.brentvatne.exoplayer.download.model.RaiDownloadState
+import com.brentvatne.exoplayer.download.model.react.ReactDownloadItem
+import com.facebook.react.bridge.ReadableMap
 import com.google.gson.Gson
 
 
@@ -48,4 +50,46 @@ fun String.getDrmLicenseQueryParams(): HashMap<String, String> {
     }
 
     return optionalKeyRequestParameters
+}
+
+fun ReactDownloadItem.toRaiDownloadItem(): RaiDownloadItem {
+    return RaiDownloadItem(
+        ua = null,
+        contentItemId = null,
+        drmLicenseUrl = drm?.licenseServer,
+        drmOperator = if(drm != null) "NAGRA" else null,
+        nagraToken = drm?.licenseToken,
+        downloadableUrl = url,
+        isDrm = drm != null,
+        downloadSubtitleList = subtitles ?: emptyList(),
+        state = RaiDownloadState.QUEUED,
+        pathId = null,
+        programPathId = null,
+        videoInfo = videoInfo,
+        programInfo = programInfo,
+        drm = drm,
+        mediapolisUrl = mediapolisUrl
+    )
+}
+
+fun RaiDownloadItem.toReactDownloadItem(): ReactDownloadItem {
+    return ReactDownloadItem(
+        mediapolisUrl = mediapolisUrl ?: "",
+        url = downloadableUrl,
+        subtitles = downloadSubtitleList,
+        drm = drm,
+        videoInfo = videoInfo,
+        programInfo = programInfo
+    )
+}
+
+fun ReadableMap.toReactDownloadItem(): ReactDownloadItem{
+    return ReactDownloadItem(
+        mediapolisUrl = getString("mediapolisUrl") ?: "",
+        url = getString("url") ?: "",
+        subtitles = null,
+        drm = null,
+        videoInfo = null,
+        programInfo = null
+    )
 }

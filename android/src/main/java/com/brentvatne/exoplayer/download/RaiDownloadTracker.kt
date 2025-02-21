@@ -140,6 +140,8 @@ class RaiDownloadTracker @OptIn(UnstableApi::class) constructor
             while (loadedDownloads.moveToNext()) {
                 val download = loadedDownloads.download
                 val raiDownloadItem = download.request.data.toRaiDownloadItem()
+                Log.d(TAG, "loadDownload $raiDownloadItem")
+                Log.d(TAG, "loadDownload ${download.request.data}")
                 raiDownloadItem?.run {
                     state = download.toRaiDownloadState()
                     downloadSizeMb = download.bytesDownloaded / (1024 * 1024)

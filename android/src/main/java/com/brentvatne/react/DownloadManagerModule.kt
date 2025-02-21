@@ -5,17 +5,21 @@ import android.app.NotificationManager
 import android.content.Context
 import android.os.Build
 import android.util.Log
-import androidx.annotation.OptIn
 import androidx.media3.common.util.UnstableApi
 import com.brentvatne.exoplayer.download.RaiDownloadTracker
+import com.brentvatne.exoplayer.download.model.react.ReactDownloadItem
 import com.brentvatne.exoplayer.download.model.toRaiDownloadItem
 import com.brentvatne.exoplayer.download.model.toReadableMap
 import com.brentvatne.exoplayer.download.utils.DiUtils
 import com.brentvatne.exoplayer.download.utils.DownloadConstants
+import com.brentvatne.exoplayer.download.utils.toRaiDownloadItem
+import com.brentvatne.exoplayer.download.utils.toReactDownloadItem
 import com.facebook.react.bridge.Arguments
+import com.facebook.react.bridge.Promise
 import com.facebook.react.bridge.ReactApplicationContext
 import com.facebook.react.bridge.ReactContextBaseJavaModule
 import com.facebook.react.bridge.ReactMethod
+import com.facebook.react.bridge.ReadableArray
 import com.facebook.react.bridge.ReadableMap
 import com.facebook.react.modules.core.DeviceEventManagerModule
 
@@ -36,12 +40,13 @@ class DownloadManagerModule(private val reactContext: ReactApplicationContext) :
         downloadTracker?.subscribeDownloads {
             val readableArray = Arguments.createArray()
             it.forEach { item ->
-                readableArray.pushMap(item.toReadableMap())
+                readableArray.pushMap(item.toReactDownloadItem().toReadableMap())
             }
+            Log.d(NAME, "onDownloadListChanged $readableArray")
             reactContext.getJSModule(DeviceEventManagerModule.RCTDeviceEventEmitter::class.java)
                 .emit("onDownloadListChanged", readableArray)
         }
-        downloadTracker?.subscribeError {
+        downloadTracker?.subscribeError {//TODO CHECK
             val readableMap = Arguments.createMap()
             readableMap.putString("pathId", it.pathId)
             readableMap.putString("programPathId", it.programPathId)
@@ -49,48 +54,47 @@ class DownloadManagerModule(private val reactContext: ReactApplicationContext) :
             reactContext.getJSModule(DeviceEventManagerModule.RCTDeviceEventEmitter::class.java)
                 .emit("onDownloadError", readableMap)
         }
-        downloadTracker?.subscribeRenewLicense {
+        downloadTracker?.subscribeRenewLicense {//TODO da togliere/fare direttamente in nativo
             val readableMap = Arguments.createMap()
             readableMap.putMap("item", it.item.toReadableMap())
             readableMap.putBoolean("result", it.result)
             reactContext.getJSModule(DeviceEventManagerModule.RCTDeviceEventEmitter::class.java)
                 .emit("onRenewLicense", readableMap)
         }
-        downloadTracker?.retrieveDownloads(reactContext)
-    }
-
-    @OptIn(UnstableApi::class)
-    @ReactMethod
-    fun prepare() {
-
+        downloadTracker?.retrieveDownloads(reactContext)//TODO sostituire con getDownloadList
     }
 
     @ReactMethod
     fun start(item: ReadableMap) {
         Log.d(NAME, "start $item")
         createNotificationChannel()
-        downloadTracker?.startDownload(item.toRaiDownloadItem(), reactContext)
+        downloadTracker?.startDownload(item.toReactDownloadItem().toRaiDownloadItem(), reactContext)
     }
 
     @ReactMethod
     fun resume(item: ReadableMap) {
         Log.d(NAME, "resume $item")
-        downloadTracker?.resumeDownload(item.toRaiDownloadItem(), reactContext)
+        downloadTracker?.resumeDownload(
+            item.toReactDownloadItem().toRaiDownloadItem(),
+            reactContext
+        )
     }
 
     @ReactMethod
     fun pause(item: ReadableMap) {
         Log.d(NAME, "pause $item")
-        downloadTracker?.pauseDownload(item.toRaiDownloadItem(), reactContext)
+        downloadTracker?.pauseDownload(item.toReactDownloadItem().toRaiDownloadItem(), reactContext)
     }
 
     @ReactMethod
     fun delete(item: ReadableMap) {
         Log.d(NAME, "delete $item")
-        downloadTracker?.removeDownload(item.toRaiDownloadItem(), reactContext)
+        downloadTracker?.removeDownload(
+            item.toReactDownloadItem().toRaiDownloadItem(),
+            reactContext
+        )
     }
 
-    @ReactMethod
     fun renewDrmLicense(item: ReadableMap) {
         Log.d(NAME, "renewDrmLicense $item")
         val downloadItem = item.toRaiDownloadItem()
@@ -105,6 +109,32 @@ class DownloadManagerModule(private val reactContext: ReactApplicationContext) :
             "Medium" -> DOWNLOAD_QUALITY_REQUESTED = 1
             "Low" -> DOWNLOAD_QUALITY_REQUESTED = 0
         }
+    }
+
+    @ReactMethod
+    fun batchDelete(items: ReadableArray) {//TODO REMOVE ITEMS (MORE THAN ONE)
+        Log.d(NAME, "batch delete $items")
+    }
+
+    @ReactMethod
+    fun getDownloadList(promise: Promise) {//TODO RESTITUIRE LISTA DOWNLOAD COMPLETI
+        Log.d(NAME, "getDownloadList")
+        /*
+        CoroutineScope(Dispatchers.IO).launch {
+            try {
+                adSlotAPI?.skipAd() ?: throw Exception("Slot API is not available")
+                promise.resolve("Ad skipped successfully")
+            } catch (e: Exception) {
+                promise.reject("AD_SKIP_ERROR", e)
+            }
+        }
+         */
+        try {
+
+        } catch (e: Exception) {
+            promise.resolve(emptyList<ReactDownloadItem>())
+        }
+        return promise.resolve(emptyList<ReactDownloadItem>())//fix tornare lista popolata recuperata
     }
 
     private fun createNotificationChannel() {

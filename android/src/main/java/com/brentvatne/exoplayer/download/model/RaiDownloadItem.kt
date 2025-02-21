@@ -1,5 +1,7 @@
 package com.brentvatne.exoplayer.download.model
 
+import com.brentvatne.exoplayer.download.model.react.DownloadVideoInfo
+import com.brentvatne.exoplayer.download.model.react.LicenseServer
 import com.facebook.react.bridge.Arguments
 import com.facebook.react.bridge.ReadableMap
 import com.facebook.react.bridge.WritableMap
@@ -33,7 +35,15 @@ data class RaiDownloadItem(
     @SerializedName("pathId")
     val pathId: String?,
     @SerializedName("programPathId")
-    val programPathId: String?
+    val programPathId: String?,
+    @SerializedName("videoInfo")
+    val videoInfo: DownloadVideoInfo? = null,
+    @SerializedName("programInfo")
+    val programInfo: DownloadVideoInfo? = null,
+    @SerializedName("drm")
+    val drm: LicenseServer? = null,
+    @SerializedName("mediapolisUrl")
+    val mediapolisUrl: String? = null
 )
 
 fun ReadableMap.toRaiDownloadItem(): RaiDownloadItem {
