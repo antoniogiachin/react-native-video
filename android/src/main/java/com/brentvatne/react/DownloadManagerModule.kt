@@ -7,6 +7,7 @@ import android.os.Build
 import android.util.Log
 import androidx.media3.common.util.UnstableApi
 import com.brentvatne.exoplayer.download.RaiDownloadTracker
+import com.brentvatne.exoplayer.download.model.RaiDownloadState
 import com.brentvatne.exoplayer.download.model.react.ReactDownloadItem
 import com.brentvatne.exoplayer.download.model.toRaiDownloadItem
 import com.brentvatne.exoplayer.download.model.toReadableMap
@@ -22,6 +23,10 @@ import com.facebook.react.bridge.ReactMethod
 import com.facebook.react.bridge.ReadableArray
 import com.facebook.react.bridge.ReadableMap
 import com.facebook.react.modules.core.DeviceEventManagerModule
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 @UnstableApi
 class DownloadManagerModule(private val reactContext: ReactApplicationContext) :
@@ -45,6 +50,16 @@ class DownloadManagerModule(private val reactContext: ReactApplicationContext) :
             Log.d(NAME, "onDownloadListChanged $readableArray")
             reactContext.getJSModule(DeviceEventManagerModule.RCTDeviceEventEmitter::class.java)
                 .emit("onDownloadListChanged", readableArray)
+        }
+
+        downloadTracker?.subscribeProgress {
+            val readableArray = Arguments.createArray()
+            it.forEach { item ->
+                readableArray.pushMap(item.toReactDownloadItem().toReadableMap())
+            }
+            Log.d(NAME, "onDownloadProgress $readableArray")
+            reactContext.getJSModule(DeviceEventManagerModule.RCTDeviceEventEmitter::class.java)
+                .emit("onDownloadProgress", readableArray)
         }
         downloadTracker?.subscribeError {//TODO CHECK
             val readableMap = Arguments.createMap()
@@ -112,30 +127,39 @@ class DownloadManagerModule(private val reactContext: ReactApplicationContext) :
     }
 
     @ReactMethod
-    fun batchDelete(items: ReadableArray) {//TODO REMOVE ITEMS (MORE THAN ONE)
+    fun batchDelete(items: ReadableArray) {
         Log.d(NAME, "batch delete $items")
+        for (i in 0 until items.size()) {
+            val item = items.getMap(i)
+            downloadTracker?.removeDownload(item.toRaiDownloadItem(), reactContext)
+        }
     }
 
     @ReactMethod
-    fun getDownloadList(promise: Promise) {//TODO RESTITUIRE LISTA DOWNLOAD COMPLETI
+    fun getDownloadList(promise: Promise) {
         Log.d(NAME, "getDownloadList")
-        /*
         CoroutineScope(Dispatchers.IO).launch {
             try {
-                adSlotAPI?.skipAd() ?: throw Exception("Slot API is not available")
-                promise.resolve("Ad skipped successfully")
+                val list = downloadTracker?.getDownloadMap()?.values?.toList()?.filter { it.state == RaiDownloadState.COMPLETED }
+                val array = Arguments.createArray()
+
+                if (list != null) {
+                    for(item in list){
+                        array.pushMap(item.toReactDownloadItem().toWritableMap())
+                    }
+                }
+
+                withContext(Dispatchers.Main) {
+                    promise.resolve(array)
+                }
             } catch (e: Exception) {
-                promise.reject("AD_SKIP_ERROR", e)
+                withContext(Dispatchers.Main) {
+                    promise.reject("DOWNLOAD_ERROR", e)
+                }
             }
         }
-         */
-        try {
-
-        } catch (e: Exception) {
-            promise.resolve(emptyList<ReactDownloadItem>())
-        }
-        return promise.resolve(emptyList<ReactDownloadItem>())//fix tornare lista popolata recuperata
     }
+
 
     private fun createNotificationChannel() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {

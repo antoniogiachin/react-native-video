@@ -36,6 +36,7 @@ import com.brentvatne.exoplayer.download.model.RaiDownloadState
 import com.brentvatne.exoplayer.download.model.RaiDownloadSubtitle
 import com.brentvatne.exoplayer.download.model.RenewLicenseResult
 import com.brentvatne.exoplayer.download.model.Track
+import com.brentvatne.exoplayer.download.model.react.ReactDownloadItem
 import com.brentvatne.exoplayer.download.utils.DownloadConstants.CHECK_DOWNLOADING_TIMER
 import com.brentvatne.exoplayer.download.utils.DownloadConstants.CONTENT_ITEM_ID
 import com.brentvatne.exoplayer.download.utils.DownloadConstants.CONTENT_PATH_ID
@@ -54,7 +55,10 @@ import com.brentvatne.exoplayer.download.utils.NAGRA
 import com.brentvatne.exoplayer.download.utils.getDrmLicenseQueryParams
 import com.brentvatne.exoplayer.download.utils.toRaiDownloadItem
 import com.brentvatne.exoplayer.download.utils.toRaiDownloadState
+import com.brentvatne.exoplayer.download.utils.toReactDownloadItem
 import com.brentvatne.react.DownloadManagerModule.Companion.DOWNLOAD_QUALITY_REQUESTED
+import com.facebook.react.bridge.Arguments
+import com.facebook.react.bridge.WritableArray
 import com.google.gson.Gson
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -83,6 +87,7 @@ class RaiDownloadTracker @OptIn(UnstableApi::class) constructor
 )
 {
     private val downloadListFlow = MutableSharedFlow<List<RaiDownloadItem>>()
+    private val downloadProgressListFlow = MutableSharedFlow<List<RaiDownloadItem>>()
     private val errorDownloadFlow = MutableSharedFlow<ErrorItem>()
     private val renewLicenseFlow = MutableSharedFlow<RenewLicenseResult>()
     private val downloadMap = hashMapOf<String, RaiDownloadItem>()
@@ -109,7 +114,8 @@ class RaiDownloadTracker @OptIn(UnstableApi::class) constructor
                 }
             }
 
-        postDownloadList()
+        //postDownloadList()
+        postDownloadProgressList()
         startDownloadRunnable()
     }
 
@@ -161,6 +167,18 @@ class RaiDownloadTracker @OptIn(UnstableApi::class) constructor
         CoroutineScope(Dispatchers.Default).launch {
             downloadListFlow.emit(downloadMap.values.toList().filter { it.state != RaiDownloadState.FAILED })
         }
+        Log.d(TAG, "postDownloadList ${downloadMap.values.toList().filter { it.state != RaiDownloadState.FAILED }}")
+    }
+
+    private fun postDownloadProgressList() {
+        CoroutineScope(Dispatchers.Default).launch {
+            downloadProgressListFlow.emit(downloadMap.values.toList().filter { it.state == RaiDownloadState.DOWNLOADING })
+        }
+        Log.d(TAG, "postDownloadProgressList ${downloadMap.values.toList().filter { it.state == RaiDownloadState.DOWNLOADING }}")
+    }
+
+    fun getDownloadMap() : HashMap<String, RaiDownloadItem> {
+        return downloadMap
     }
 
     private fun startRaiDownloadService(activityContext: Context) {
@@ -197,6 +215,12 @@ class RaiDownloadTracker @OptIn(UnstableApi::class) constructor
                 renewLicenseFlow.emit(RenewLicenseResult(it, result))
             }
         }
+    }
+
+    fun subscribeProgress(
+        task: (List<RaiDownloadItem>) -> Unit
+    ) {
+        downloadProgressListFlow.asSharedFlow().onEach { task(it) }.launchIn(CoroutineScope(Dispatchers.Default))
     }
 
     private fun getDownloadHelper(context: Context, mediaItem: MediaItem, drmLicenseUrl: String, operator: String): DownloadHelper {
