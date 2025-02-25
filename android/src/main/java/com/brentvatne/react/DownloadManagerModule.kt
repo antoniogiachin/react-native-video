@@ -8,7 +8,7 @@ import android.util.Log
 import androidx.media3.common.util.UnstableApi
 import com.brentvatne.exoplayer.download.RaiDownloadTracker
 import com.brentvatne.exoplayer.download.model.RaiDownloadState
-import com.brentvatne.exoplayer.download.model.react.ReactDownloadItem
+import com.brentvatne.exoplayer.download.model.react.toReactDownloadItem
 import com.brentvatne.exoplayer.download.model.toRaiDownloadItem
 import com.brentvatne.exoplayer.download.model.toReadableMap
 import com.brentvatne.exoplayer.download.utils.DiUtils

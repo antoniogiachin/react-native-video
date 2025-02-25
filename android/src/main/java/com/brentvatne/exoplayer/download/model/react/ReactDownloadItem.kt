@@ -6,8 +6,8 @@ import com.facebook.react.bridge.ReadableMap
 import com.google.gson.annotations.SerializedName
 
 data class ReactDownloadItem(
-    @SerializedName("mediapolisUrl") //sarà il nuovo ID del download, serve anche per recuperare i DRM aggiornati in caso di errori per setRenewDRM così da aggiornare LicenseServer
-    var mediapolisUrl: String,
+    @SerializedName("pathId")
+    var pathId: String,
     @SerializedName("url")
     val url: String,
     @SerializedName("subtitles")
@@ -22,7 +22,7 @@ data class ReactDownloadItem(
     fun toWritableMap(): ReadableMap? {
         val map = Arguments.createMap()
 
-        mediapolisUrl.let { map.putString("mediapolisUrl", it) }
+        pathId.let { map.putString("pathId", it) }
         url.let { map.putString("url", it) }
 
         subtitles?.let {
@@ -42,7 +42,7 @@ data class ReactDownloadItem(
 
     fun toReadableMap(): ReadableMap? {
         val map = Arguments.createMap()
-        map.putString("mediapolisUrl", mediapolisUrl)
+        map.putString("pathId", pathId)
         map.putString("url", url)
         subtitles?.let {
             val subtitlesArray = Arguments.createArray()
@@ -89,8 +89,8 @@ data class DownloadVideoInfo(
     val description: String,
     val mediaInfo: List<MediaItemDetail>? = null, 
     val programPathId: String?,
-    var bytesDownloaded: Long,
-    var totalBytes: Long,
+    var bytesDownloaded: Long?,
+    var totalBytes: Long?,
 ) {
     fun toWritableMap(): ReadableMap? {
         val map = Arguments.createMap()
@@ -106,8 +106,8 @@ data class DownloadVideoInfo(
             map.putArray("mediaInfo", programInfoArray)
         }?: map.putNull("mediaInfo")
         map.putString("programPathId", programPathId)
-        map.putDouble("bytesDownloaded", bytesDownloaded.toDouble())
-        map.putDouble("totalBytes", totalBytes.toDouble())
+        map.putDouble("bytesDownloaded", (bytesDownloaded?.toDouble() ?: 0) as Double)
+        map.putDouble("totalBytes", (totalBytes?.toDouble() ?: 0) as Double)
         return map
     }
 
@@ -124,8 +124,8 @@ data class DownloadVideoInfo(
             map.putArray("mediaInfo", programInfoArray)
         }
         map.putString("programPathId", programPathId)
-        map.putDouble("bytesDownloaded", bytesDownloaded.toDouble())
-        map.putDouble("totalBytes", totalBytes.toDouble())
+        map.putDouble("bytesDownloaded", (bytesDownloaded?.toDouble() ?: 0) as Double)
+        map.putDouble("totalBytes", (totalBytes?.toDouble() ?: 0) as Double)
         return map
     }
 }
@@ -181,4 +181,94 @@ enum class DRMType(val value: String) {
     companion object {
         fun fromValue(value: String): DRMType? = entries.find { it.value == value }
     }
+}
+
+fun ReadableMap.toReactDownloadItem(): ReactDownloadItem {
+    val subtitlesList = this.getArray("subtitles")?.let { subtitlesArray ->
+        (0 until subtitlesArray.size()).map { index ->
+            subtitlesArray.getMap(index)?.let { subtitleMap ->
+                RaiDownloadSubtitle(
+                    language = subtitleMap.getString("language") ?: "",
+                    webUrl = subtitleMap.getString("webUrl") ?: "",  
+                    localUrl = subtitleMap.getString("localUrl") ?: ""
+                )
+            }
+        }.filterNotNull()
+    }
+
+    val drm: LicenseServer? = this.getMap("drm")?.let { drmMap ->
+        LicenseServer(
+            type = drmMap.getString("type")?.let { DRMType.fromValue(it) },
+            licenseServer = drmMap.getString("licenseServer"),
+            licenseToken = drmMap.getString("licenseToken")
+        )
+    }
+
+    val videoInfo: DownloadVideoInfo? = this.getMap("videoInfo")?.let { videoInfoMap ->
+        val mediaInfoList = videoInfoMap.getArray("mediaInfo")?.let { mediaInfoArray ->
+            (0 until mediaInfoArray.size()).mapNotNull { index ->
+                mediaInfoArray.getMap(index)?.let { mediaInfoMap ->
+                    val key = mediaInfoMap.getString("key")?.let { MediaItemKey.valueOf(it) }
+                    val value = mediaInfoMap.getString("value")
+                    val icon = mediaInfoMap.getString("icon") 
+
+                    if (key != null && value != null) {
+                        if (icon != null) {
+                            MediaItemDetail.Icon(key, value)
+                        } else {
+                            MediaItemDetail.Label(key, value)
+                        }
+                    } else {
+                        null
+                    }
+                }
+            }
+        }
+        DownloadVideoInfo(
+            templateImg = videoInfoMap.getString("templateImg") ?: "",
+            title = videoInfoMap.getString("title") ?: "",
+            description = videoInfoMap.getString("description") ?: "",
+            mediaInfo = mediaInfoList,
+            programPathId = videoInfoMap.getString("programPathId"),
+            bytesDownloaded = if (videoInfoMap.hasKey("bytesDownloaded")) videoInfoMap.getDouble("bytesDownloaded").toLong() else 0L,
+            totalBytes = if (videoInfoMap.hasKey("totalBytes")) videoInfoMap.getDouble("totalBytes").toLong() else 0L
+        )
+    }
+
+    val programInfo: DownloadVideoInfo? = this.getMap("programInfo")?.let { programInfoMap ->
+        val mediaInfoList = programInfoMap.getArray("mediaInfo")?.let { mediaInfoArray ->
+            (0 until mediaInfoArray.size()).mapNotNull { index ->
+                mediaInfoArray.getMap(index)?.let { mediaInfoMap ->
+                    val key = mediaInfoMap.getString("key")?.let { MediaItemKey.valueOf(it) }
+                    val value = mediaInfoMap.getString("value")
+
+                    if (key != null && value != null) {
+                        MediaItemDetail.Label(key, value)
+                    } else {
+                        null
+                    }
+                }
+            }
+        }
+
+        DownloadVideoInfo(
+            templateImg = programInfoMap.getString("templateImg") ?: "",
+            title = programInfoMap.getString("title") ?: "",
+            description = programInfoMap.getString("description") ?: "",
+            mediaInfo = mediaInfoList,
+            programPathId = programInfoMap.getString("programPathId"),
+            bytesDownloaded = if (programInfoMap.hasKey("bytesDownloaded")) programInfoMap.getDouble("bytesDownloaded").toLong() else 0L,
+            totalBytes = if (programInfoMap.hasKey("totalBytes")) programInfoMap.getDouble("totalBytes").toLong() else 0L
+        )
+    }
+
+
+    return ReactDownloadItem(
+        pathId = this.getString("pathId") ?: "",
+        url = this.getString("url") ?: "",
+        subtitles = subtitlesList,
+        drm = drm,
+        videoInfo = videoInfo,
+        programInfo = programInfo
+    )
 }

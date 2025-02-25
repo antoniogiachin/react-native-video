@@ -36,7 +36,6 @@ import com.brentvatne.exoplayer.download.model.RaiDownloadState
 import com.brentvatne.exoplayer.download.model.RaiDownloadSubtitle
 import com.brentvatne.exoplayer.download.model.RenewLicenseResult
 import com.brentvatne.exoplayer.download.model.Track
-import com.brentvatne.exoplayer.download.model.react.ReactDownloadItem
 import com.brentvatne.exoplayer.download.utils.DownloadConstants.CHECK_DOWNLOADING_TIMER
 import com.brentvatne.exoplayer.download.utils.DownloadConstants.CONTENT_ITEM_ID
 import com.brentvatne.exoplayer.download.utils.DownloadConstants.CONTENT_PATH_ID
@@ -55,10 +54,7 @@ import com.brentvatne.exoplayer.download.utils.NAGRA
 import com.brentvatne.exoplayer.download.utils.getDrmLicenseQueryParams
 import com.brentvatne.exoplayer.download.utils.toRaiDownloadItem
 import com.brentvatne.exoplayer.download.utils.toRaiDownloadState
-import com.brentvatne.exoplayer.download.utils.toReactDownloadItem
 import com.brentvatne.react.DownloadManagerModule.Companion.DOWNLOAD_QUALITY_REQUESTED
-import com.facebook.react.bridge.Arguments
-import com.facebook.react.bridge.WritableArray
 import com.google.gson.Gson
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -753,14 +749,16 @@ class RaiDownloadTracker @OptIn(UnstableApi::class) constructor
         }
     }
 
-    private fun getId(item: RaiDownloadItem, forcePathId: Boolean = false): String {
-        return if (forcePathId) (item.ua + item.pathId + item.programPathId).hashCode().toString()
-        else
-            (item.contentItemId ?: (item.ua + item.pathId + item.programPathId).hashCode().toString())
+    private fun getId(item: RaiDownloadItem, forcePathId: Boolean = false): String {//ID sarà solo pathId
+//        return if (forcePathId) (item.ua + item.pathId + item.programPathId).hashCode().toString()
+//        else
+//            (item.contentItemId ?: (item.ua + item.pathId + item.programPathId).hashCode().toString())
+        return item.pathId
     }
 
     private fun getIdWithoutProgram(item: RaiDownloadItem): String {
-        return (item.ua + item.pathId + "").hashCode().toString()
+//        return (item.ua + item.pathId + "").hashCode().toString()
+        return item.pathId
     }
 
     companion object {

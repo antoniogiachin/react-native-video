@@ -33,7 +33,7 @@ data class RaiDownloadItem(
     @SerializedName("totalBytes")
     var totalBytes: Long = 0L,
     @SerializedName("pathId")
-    val pathId: String?,
+    val pathId: String,
     @SerializedName("programPathId")
     val programPathId: String?,
     @SerializedName("videoInfo")
@@ -69,7 +69,7 @@ fun ReadableMap.toRaiDownloadItem(): RaiDownloadItem {
         isDrm = getMap("drm") != null,
         downloadSubtitleList = subtitles,
         state = RaiDownloadState.QUEUED,
-        pathId = getString("pathId"),
+        pathId = getString("pathId") ?: "",
         programPathId = getString("programPathId")
     )
 }

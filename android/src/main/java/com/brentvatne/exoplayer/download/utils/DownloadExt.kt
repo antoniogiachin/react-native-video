@@ -8,7 +8,6 @@ import androidx.media3.exoplayer.offline.Download
 import com.brentvatne.exoplayer.download.model.RaiDownloadItem
 import com.brentvatne.exoplayer.download.model.RaiDownloadState
 import com.brentvatne.exoplayer.download.model.react.ReactDownloadItem
-import com.facebook.react.bridge.ReadableMap
 import com.google.gson.Gson
 
 
@@ -63,33 +62,26 @@ fun ReactDownloadItem.toRaiDownloadItem(): RaiDownloadItem {
         isDrm = drm != null,
         downloadSubtitleList = subtitles ?: emptyList(),
         state = RaiDownloadState.QUEUED,
-        pathId = null,
-        programPathId = null,
+        pathId = pathId,
+        programPathId = programInfo?.programPathId,
         videoInfo = videoInfo,
         programInfo = programInfo,
         drm = drm,
-        mediapolisUrl = mediapolisUrl
+        mediapolisUrl = null
     )
 }
 
 fun RaiDownloadItem.toReactDownloadItem(): ReactDownloadItem {
     return ReactDownloadItem(
-        mediapolisUrl = mediapolisUrl ?: "",
         url = downloadableUrl,
         subtitles = downloadSubtitleList,
         drm = drm,
         videoInfo = videoInfo,
-        programInfo = programInfo
+        programInfo = programInfo,
+        pathId = pathId ?: ""
     )
 }
 
-fun ReadableMap.toReactDownloadItem(): ReactDownloadItem{
-    return ReactDownloadItem(
-        mediapolisUrl = getString("mediapolisUrl") ?: "",
-        url = getString("url") ?: "",
-        subtitles = null,
-        drm = null,
-        videoInfo = null,
-        programInfo = null
-    )
-}
+
+
+
