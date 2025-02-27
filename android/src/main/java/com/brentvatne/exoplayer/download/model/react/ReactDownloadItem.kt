@@ -101,7 +101,7 @@ data class DownloadVideoInfo(
         mediaInfo?.let {
             val programInfoArray = Arguments.createArray()
             it.forEach{mediaItem ->
-                programInfoArray.pushMap(mediaItem.toWritableMap())
+                programInfoArray.pushMap(mediaItem.toReadableMap())
             }
             map.putArray("mediaInfo", programInfoArray)
         }?: map.putNull("mediaInfo")
@@ -130,46 +130,18 @@ data class DownloadVideoInfo(
     }
 }
 
-sealed class MediaItemDetail {
-    fun toWritableMap(): ReadableMap? {
-        val map = Arguments.createMap()
-        map.putString("key", key.name)
-        map.putString("value", value)
-
-        when (this) {
-            is MediaItemDetail.Icon -> map.putString("icon", "icon_value")
-            is MediaItemDetail.Label -> {  }
-        }
-        return map
-    }
-
+data class MediaItemDetail(
+    val key: String,
+    val type: String,
+    val value: String
+    ) {
     fun toReadableMap(): ReadableMap? {
         val map = Arguments.createMap()
-        map.putString("key", key.name)
+        map.putString("key", key)
+        map.putString("type", type)
         map.putString("value", value)
         return map
     }
-
-    abstract val key: MediaItemKey
-    abstract val value: String
-
-    data class Label(
-        override val key: MediaItemKey,
-        override val value: String
-    ) : MediaItemDetail()
-
-    data class Icon(
-        override val key: MediaItemKey,
-        override val value: String
-    ) : MediaItemDetail()
-}
-
-enum class MediaItemKey {
-    PROGRAM_NAME,
-    AVAILABILITIES,
-    SEASONS,
-    SUBTITLES,
-    RATING
 }
 
 enum class DRMType(val value: String) {
@@ -208,19 +180,11 @@ fun ReadableMap.toReactDownloadItem(): ReactDownloadItem {
         val mediaInfoList = videoInfoMap.getArray("mediaInfo")?.let { mediaInfoArray ->
             (0 until mediaInfoArray.size()).mapNotNull { index ->
                 mediaInfoArray.getMap(index)?.let { mediaInfoMap ->
-                    val key = mediaInfoMap.getString("key")?.let { MediaItemKey.valueOf(it) }
-                    val value = mediaInfoMap.getString("value")
-                    val icon = mediaInfoMap.getString("icon") 
-
-                    if (key != null && value != null) {
-                        if (icon != null) {
-                            MediaItemDetail.Icon(key, value)
-                        } else {
-                            MediaItemDetail.Label(key, value)
-                        }
-                    } else {
-                        null
-                    }
+                    MediaItemDetail(
+                        key = mediaInfoMap.getString("key") ?: "",
+                        value = mediaInfoMap.getString("value") ?: "",
+                        type = mediaInfoMap.getString("icon") ?: "" 
+                    )
                 }
             }
         }
@@ -239,14 +203,11 @@ fun ReadableMap.toReactDownloadItem(): ReactDownloadItem {
         val mediaInfoList = programInfoMap.getArray("mediaInfo")?.let { mediaInfoArray ->
             (0 until mediaInfoArray.size()).mapNotNull { index ->
                 mediaInfoArray.getMap(index)?.let { mediaInfoMap ->
-                    val key = mediaInfoMap.getString("key")?.let { MediaItemKey.valueOf(it) }
-                    val value = mediaInfoMap.getString("value")
-
-                    if (key != null && value != null) {
-                        MediaItemDetail.Label(key, value)
-                    } else {
-                        null
-                    }
+                    MediaItemDetail(
+                        key = mediaInfoMap.getString("key") ?: "",
+                        value = mediaInfoMap.getString("value") ?: "",
+                        type = mediaInfoMap.getString("icon") ?: "" 
+                    )
                 }
             }
         }
