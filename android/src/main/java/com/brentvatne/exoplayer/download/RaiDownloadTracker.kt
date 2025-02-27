@@ -749,6 +749,18 @@ class RaiDownloadTracker @OptIn(UnstableApi::class) constructor
         }
     }
 
+    fun getDownloadByPathId(pathId: String?): RaiDownloadItem? {
+        return downloadMap[pathId]
+    }
+
+    fun getDownloadedUri(item: RaiDownloadItem?): Uri? {
+        val download = downloadManager.downloadIndex.getDownload(getId(item!!, true))
+        if (download != null && download.state == Download.STATE_COMPLETED) {
+            return download.request.uri
+        }
+        return null
+    }
+
     private fun getId(item: RaiDownloadItem, forcePathId: Boolean = false): String {//ID sarà solo pathId
 //        return if (forcePathId) (item.ua + item.pathId + item.programPathId).hashCode().toString()
 //        else

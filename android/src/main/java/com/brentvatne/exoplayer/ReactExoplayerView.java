@@ -10,9 +10,9 @@ import static androidx.media3.common.C.TIME_END_OF_SOURCE;
 import android.annotation.SuppressLint;
 import android.app.Activity;
 import android.app.ActivityManager;
+import android.app.AlertDialog;
 import android.app.PictureInPictureParams;
 import android.app.RemoteAction;
-import android.app.AlertDialog;
 import android.content.ComponentName;
 import android.content.Context;
 import android.content.Intent;
@@ -120,6 +120,9 @@ import com.brentvatne.common.api.VideoTrack;
 import com.brentvatne.common.react.VideoEventEmitter;
 import com.brentvatne.common.toolbox.DebugLog;
 import com.brentvatne.common.toolbox.ReactBridgeUtils;
+import com.brentvatne.exoplayer.download.RaiDownloadTracker;
+import com.brentvatne.exoplayer.download.model.RaiDownloadItem;
+import com.brentvatne.exoplayer.download.utils.DiUtils;
 import com.brentvatne.react.BuildConfig;
 import com.brentvatne.react.R;
 import com.brentvatne.react.ReactNativeVideoManager;
@@ -269,6 +272,8 @@ public class ReactExoplayerView extends FrameLayout implements
 
     private final String instanceId = String.valueOf(UUID.randomUUID());
 
+    private RaiDownloadTracker downloadTracker;
+
     private CmcdConfiguration.Factory cmcdConfigurationFactory;
 
     public void setCmcdConfigurationFactory(CmcdConfiguration.Factory factory) {
@@ -336,6 +341,8 @@ public class ReactExoplayerView extends FrameLayout implements
         audioBecomingNoisyReceiver = new AudioBecomingNoisyReceiver(themedReactContext);
         audioFocusChangeListener = new OnAudioFocusChangedListener(this, themedReactContext);
         pictureInPictureReceiver = new PictureInPictureReceiver(this, themedReactContext);
+        downloadTracker = DiUtils.INSTANCE.getDownloadTracker(context);
+
     }
 
     private boolean isPlayingAd() {
@@ -1942,6 +1949,31 @@ public class ReactExoplayerView extends FrameLayout implements
                 this.setCmcdConfigurationFactory(factory);
             } else {
                 this.setCmcdConfigurationFactory(null);
+            }
+
+            boolean isDownload = source.isDownload();
+            Uri uri = source.getUri();
+
+            if (isDownload) {
+                String uriString = uri.toString();
+                if(uriString.startsWith("file://")) {
+                    uriString = uriString.substring("file://".length());
+                }
+                RaiDownloadItem downloadItem = downloadTracker.getDownloadByPathId(uriString);
+                if (downloadItem != null) {
+                    Uri downloadedUri = downloadTracker.getDownloadedUri(downloadItem);
+                    if (downloadedUri != null) {
+                        this.source.setUri(downloadedUri);
+                        this.source.setUriString(downloadedUri.toString());
+
+                    }
+                    else {
+                        return;
+                    }
+                }
+                else {
+                    return;
+                }
             }
 
             if (!isSourceEqual) {

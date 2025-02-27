@@ -24,8 +24,10 @@ import java.util.Objects
  * Only generic code here, no reference to the player.
  */
 class Source {
+    var isDownload: Boolean = false
+
     /** String value of source to playback */
-    private var uriString: String? = null
+    var uriString: String? = null
 
     /** Parsed value of source to playback */
     var uri: Uri? = null
@@ -181,6 +183,7 @@ class Source {
         private const val PROP_SRC_TEXT_TRACKS = "textTracks"
         private const val PROP_SRC_MIN_LOAD_RETRY_COUNT = "minLoadRetryCount"
         private const val PROP_SRC_BUFFER_CONFIG = "bufferConfig"
+        private const val PROP_SRC_DOWNLOAD = "isDownload"
 
         @SuppressLint("DiscouragedApi")
         private fun getUriFromAssetId(context: Context, uriString: String): Uri? {
@@ -231,6 +234,8 @@ class Source {
                         return source
                     }
                 }
+                val isDownload = safeGetBool(src, PROP_SRC_DOWNLOAD, false)
+                source.isDownload = isDownload
                 source.uriString = uriString
                 source.uri = uri
                 source.isLocalAssetFile = safeGetBool(src, PROP_SRC_IS_LOCAL_ASSET_FILE, false)
