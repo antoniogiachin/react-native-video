@@ -99,8 +99,11 @@ class RaiDownloadTracker @OptIn(UnstableApi::class) constructor
                         raiDownloadItem.value.downloadSizeMb =
                             download.bytesDownloaded / (1024 * 1024)
                         raiDownloadItem.value.bytesDownloaded = download.bytesDownloaded
-                        if (download.percentDownloaded.toLong() != 0L)
+                        raiDownloadItem.value.videoInfo?.bytesDownloaded = download.bytesDownloaded
+                        if (download.percentDownloaded.toLong() != 0L){
                             raiDownloadItem.value.totalBytes = (download.bytesDownloaded * 100) / download.percentDownloaded.toLong()
+                            raiDownloadItem.value.videoInfo?.totalBytes = (download.bytesDownloaded * 100) / download.percentDownloaded.toLong()
+                        }
                     }
                 } catch (e: Exception) {
                     Log.e(
@@ -112,6 +115,7 @@ class RaiDownloadTracker @OptIn(UnstableApi::class) constructor
 
         //postDownloadList()
         postDownloadProgressList()
+
         startDownloadRunnable()
     }
 
@@ -132,7 +136,7 @@ class RaiDownloadTracker @OptIn(UnstableApi::class) constructor
         downloadManager.addListener(DownloadManagerListener(context))
         startRaiDownloadService(context)
         loadDownload() {
-            postDownloadList()
+//            postDownloadList()
         }
     }
 
@@ -148,7 +152,9 @@ class RaiDownloadTracker @OptIn(UnstableApi::class) constructor
                     state = download.toRaiDownloadState()
                     downloadSizeMb = download.bytesDownloaded / (1024 * 1024)
                     bytesDownloaded = download.bytesDownloaded
-                    totalBytes = download.contentLength
+                    totalBytes = if(state == RaiDownloadState.COMPLETED) download.bytesDownloaded else download.contentLength
+                    videoInfo?.bytesDownloaded = download.bytesDownloaded
+                    videoInfo?.totalBytes = if(state == RaiDownloadState.COMPLETED) download.bytesDownloaded else download.contentLength
                     downloadMap[getId(raiDownloadItem, true)] = raiDownloadItem
                 }
             }
@@ -703,8 +709,15 @@ class RaiDownloadTracker @OptIn(UnstableApi::class) constructor
                 state = download.toRaiDownloadState()
                 downloadSizeMb = download.bytesDownloaded / (1024 * 1024)
                 bytesDownloaded = download.bytesDownloaded
-                if (state == RaiDownloadState.COMPLETED) totalBytes = download.bytesDownloaded
-                else if (download.percentDownloaded.toLong() != 0L) totalBytes = download.bytesDownloaded * 100 / download.percentDownloaded.toLong()
+                videoInfo?.bytesDownloaded = download.bytesDownloaded
+                if (state == RaiDownloadState.COMPLETED){
+                    totalBytes = download.bytesDownloaded
+                    videoInfo?.totalBytes = download.bytesDownloaded
+                }
+                else if (download.percentDownloaded.toLong() != 0L) {
+                    totalBytes = download.bytesDownloaded * 100 / download.percentDownloaded.toLong()
+                    videoInfo?.totalBytes = download.bytesDownloaded * 100 / download.percentDownloaded.toLong()
+                }
 
                 if (raiDownloadItem.state != RaiDownloadState.FAILED)
                     downloadMap[getId(raiDownloadItem, true)] = raiDownloadItem
@@ -715,7 +728,8 @@ class RaiDownloadTracker @OptIn(UnstableApi::class) constructor
                     }
                 }
 
-                postDownloadList()
+                if(state == RaiDownloadState.COMPLETED)
+                    postDownloadList()
 
                 val downloading = downloadMap.filterValues { it.state == RaiDownloadState.DOWNLOADING }
                 if (downloading.isNotEmpty()) startDownloadRunnable()

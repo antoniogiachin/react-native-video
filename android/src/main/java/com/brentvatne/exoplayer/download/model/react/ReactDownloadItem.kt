@@ -1,5 +1,6 @@
 package com.brentvatne.exoplayer.download.model.react
 
+import com.brentvatne.exoplayer.download.model.RaiDownloadState
 import com.brentvatne.exoplayer.download.model.RaiDownloadSubtitle
 import com.facebook.react.bridge.Arguments
 import com.facebook.react.bridge.ReadableMap
@@ -15,9 +16,13 @@ data class ReactDownloadItem(
     @SerializedName("drm")//isDRM
     val drm: LicenseServer?,
     @SerializedName("videoInfo")//puntata
-    val videoInfo: DownloadVideoInfo?, 
+    val videoInfo: DownloadVideoInfo?,
     @SerializedName("programInfo")//programma
     val programInfo: DownloadVideoInfo?,
+    @SerializedName("expireDate")
+    val expireDate: String? = null,
+    @SerializedName("state")
+    var state: String? = null,
 ) {
     fun toWritableMap(): ReadableMap? {
         val map = Arguments.createMap()
@@ -36,6 +41,8 @@ data class ReactDownloadItem(
         drm?.let { map.putMap("drm", it.toWritableMap()) } ?: map.putNull("drm")
         videoInfo?.let { map.putMap("videoInfo", it.toWritableMap()) } ?: map.putNull("videoInfo")
         programInfo?.let { map.putMap("programInfo", it.toWritableMap()) } ?: map.putNull("programInfo")
+        expireDate?.let { map.putString("expireDate", it) } ?: map.putNull("expireDate")
+        state?.let { map.putString("state", it) } ?: map.putNull("state")
 
         return map
     }
@@ -54,6 +61,9 @@ data class ReactDownloadItem(
         drm?.let { map.putMap("drm", it.toReadableMap()) } ?: map.putNull("drm")
         videoInfo?.let { map.putMap("videoInfo", it.toReadableMap()) } ?: map.putNull("videoInfo")
         programInfo?.let { map.putMap("programInfo", it.toReadableMap()) } ?: map.putNull("programInfo")
+        expireDate?.let { map.putString("expireDate", it) } ?: map.putNull("expireDate")
+        state?.let { map.putString("state", it) } ?: map.putNull("state")
+
         return map
     }
 }
@@ -87,7 +97,7 @@ data class DownloadVideoInfo(
     val templateImg: String, // URL of the video image
     val title: String,
     val description: String,
-    val mediaInfo: List<MediaItemDetail>? = null, 
+    val mediaInfo: List<MediaItemDetail>? = null,
     val programPathId: String?,
     var bytesDownloaded: Long?,
     var totalBytes: Long?,
@@ -230,6 +240,9 @@ fun ReadableMap.toReactDownloadItem(): ReactDownloadItem {
         subtitles = subtitlesList,
         drm = drm,
         videoInfo = videoInfo,
-        programInfo = programInfo
+        programInfo = programInfo,
+        expireDate = this.getString("expireDate") ?: "",
+        state = this.getString("state") ?: RaiDownloadState.QUEUED.name
+
     )
 }

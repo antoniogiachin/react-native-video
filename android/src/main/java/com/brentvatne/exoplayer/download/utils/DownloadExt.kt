@@ -7,7 +7,13 @@ import androidx.media3.common.util.Util
 import androidx.media3.exoplayer.offline.Download
 import com.brentvatne.exoplayer.download.model.RaiDownloadItem
 import com.brentvatne.exoplayer.download.model.RaiDownloadState
+import com.brentvatne.exoplayer.download.model.react.DRMType
+import com.brentvatne.exoplayer.download.model.react.DownloadVideoInfo
+import com.brentvatne.exoplayer.download.model.react.LicenseServer
+import com.brentvatne.exoplayer.download.model.react.MediaItemDetail
 import com.brentvatne.exoplayer.download.model.react.ReactDownloadItem
+import com.facebook.react.bridge.ReadableArray
+import com.facebook.react.bridge.ReadableMap
 import com.google.gson.Gson
 
 
@@ -61,24 +67,60 @@ fun ReactDownloadItem.toRaiDownloadItem(): RaiDownloadItem {
         downloadableUrl = url,
         isDrm = drm != null,
         downloadSubtitleList = subtitles ?: emptyList(),
-        state = RaiDownloadState.QUEUED,
+        state = RaiDownloadState.valueOf(state ?: RaiDownloadState.QUEUED.name),
         pathId = pathId,
         programPathId = programInfo?.programPathId,
         videoInfo = videoInfo,
         programInfo = programInfo,
         drm = drm,
-        mediapolisUrl = null
+        mediapolisUrl = null,
+        expireDate = expireDate,
+        downloadSizeMb = 0,
+        bytesDownloaded = videoInfo?.bytesDownloaded ?: 0,
+        totalBytes = videoInfo?.totalBytes ?: 0
     )
 }
 
 fun RaiDownloadItem.toReactDownloadItem(): ReactDownloadItem {
     return ReactDownloadItem(
+        pathId = pathId,
         url = downloadableUrl,
         subtitles = downloadSubtitleList,
         drm = drm,
         videoInfo = videoInfo,
         programInfo = programInfo,
-        pathId = pathId ?: ""
+        expireDate = expireDate,
+        state = state.name
+    )
+}
+
+fun ReadableMap.toDownloadVideoInfo() : DownloadVideoInfo{
+    return DownloadVideoInfo(
+        templateImg = getString("templateImg") ?: "",
+        title = getString("title") ?: "",
+        description = getString("description") ?: "",
+        mediaInfo = getArray("mediaInfo")?.toMediaInfo() ?: emptyList(),
+        programPathId = getString("programPathId"),
+        bytesDownloaded = if (hasKey("bytesDownloaded")) getDouble("bytesDownloaded").toLong() else 0L,
+        totalBytes = if (hasKey("totalBytes")) getDouble("totalBytes").toLong() else 0L
+    )
+}
+
+fun ReadableArray.toMediaInfo() : List<MediaItemDetail>{
+    return toArrayList().map {
+        it as ReadableMap
+        MediaItemDetail(
+            key = it.getString("key") ?: "",
+            value = it.getString("value") ?: "",
+            type = it.getString("icon") ?: "" )
+    }
+}
+
+fun ReadableMap.toLicenseServer() : LicenseServer {
+    return LicenseServer(
+        type = DRMType.fromValue(getString("type") ?: ""),
+        licenseServer = getString("licenseServer"),
+        licenseToken = getString("licenseToken")
     )
 }
 

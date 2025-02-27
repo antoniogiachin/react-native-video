@@ -37,6 +37,8 @@ class DownloadManagerModule(private val reactContext: ReactApplicationContext) :
     }
 
     private var downloadTracker: RaiDownloadTracker? = null
+    private var listenerCount = 0
+
 
     override fun initialize() {
         super.initialize()
@@ -158,6 +160,16 @@ class DownloadManagerModule(private val reactContext: ReactApplicationContext) :
                 }
             }
         }
+    }
+
+    @ReactMethod
+    fun addListener(eventName: String?) {
+        listenerCount += 1
+    }
+
+    @ReactMethod
+    fun removeListeners(count: Int) {
+        listenerCount -= count
     }
 
 
