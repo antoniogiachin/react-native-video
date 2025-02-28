@@ -117,7 +117,7 @@ fun RaiDownloadState.convertToReactEnum(): String =
         RaiDownloadState.LICENSE_DOWNLOADED -> "LicenseDownloaded"
         RaiDownloadState.QUEUED -> "Queue"
         RaiDownloadState.DOWNLOADING -> "Downloading"
-        RaiDownloadState.STOPPED -> "Paused"
+        RaiDownloadState.PAUSED -> "Paused"
         RaiDownloadState.RESTARTING -> "Downloading"
         RaiDownloadState.COMPLETED -> "Completed"
         RaiDownloadState.FAILED -> "Completed"

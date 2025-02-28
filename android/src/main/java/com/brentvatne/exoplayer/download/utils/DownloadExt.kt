@@ -31,7 +31,7 @@ fun Download.toRaiDownloadState(): RaiDownloadState {
     return when (this.state) {
         Download.STATE_QUEUED -> RaiDownloadState.QUEUED
         Download.STATE_DOWNLOADING -> RaiDownloadState.DOWNLOADING
-        Download.STATE_STOPPED -> RaiDownloadState.STOPPED
+        Download.STATE_STOPPED -> RaiDownloadState.PAUSED
         Download.STATE_RESTARTING -> RaiDownloadState.RESTARTING
         Download.STATE_COMPLETED -> RaiDownloadState.COMPLETED
         Download.STATE_FAILED -> RaiDownloadState.FAILED

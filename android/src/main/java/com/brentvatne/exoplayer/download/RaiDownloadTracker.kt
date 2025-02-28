@@ -173,9 +173,9 @@ class RaiDownloadTracker @OptIn(UnstableApi::class) constructor
 
     private fun postDownloadProgressList() {
         CoroutineScope(Dispatchers.Default).launch {
-            downloadProgressListFlow.emit(downloadMap.values.toList().filter { it.state == RaiDownloadState.DOWNLOADING })
+            downloadProgressListFlow.emit(downloadMap.values.toList().filter { it.state == RaiDownloadState.DOWNLOADING || it.state == RaiDownloadState.PAUSED })
         }
-        Log.d(TAG, "postDownloadProgressList ${downloadMap.values.toList().filter { it.state == RaiDownloadState.DOWNLOADING }}")
+        Log.d(TAG, "postDownloadProgressList ${downloadMap.values.toList().filter { it.state == RaiDownloadState.DOWNLOADING || it.state == RaiDownloadState.PAUSED }}")
     }
 
     fun getDownloadMap() : HashMap<String, RaiDownloadItem> {
