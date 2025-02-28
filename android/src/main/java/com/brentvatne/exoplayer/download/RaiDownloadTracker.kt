@@ -6,7 +6,6 @@ import android.os.Build
 import android.os.Handler
 import android.os.Looper
 import android.util.Log
-import androidx.annotation.OptIn
 import androidx.media3.common.C
 import androidx.media3.common.MediaItem
 import androidx.media3.common.TrackSelectionOverride
@@ -300,9 +299,10 @@ class RaiDownloadTracker @OptIn(UnstableApi::class) constructor
                         raiDownloadItem.programPathId ?: "",
                         raiDownloadItem.downloadSubtitleList
                     )
-
+                    
+                    raiDownloadItem.playerSource = getId(raiDownloadItem)
                     val downloadRequest = downloadHelper.getDownloadRequest(
-                        getId(raiDownloadItem),
+                        raiDownloadItem.playerSource ?: "",
                         Util.getUtf8Bytes(Gson().toJson(raiDownloadItem))
                     )
                     Log.d(TAG, "DownloadRequest $downloadRequest")
@@ -391,7 +391,7 @@ class RaiDownloadTracker @OptIn(UnstableApi::class) constructor
         DownloadService.sendSetStopReason(
             context,
             RaiDownloadService::class.java,
-            getId(listItem),
+            listItem.playerSource ?: "",
             GENERIC_STOP_REASON,
             false
         )
@@ -402,7 +402,7 @@ class RaiDownloadTracker @OptIn(UnstableApi::class) constructor
         DownloadService.sendSetStopReason(
             context,
             RaiDownloadService::class.java,
-            getId(listItem),
+            listItem.playerSource ?: "",
             EMPTY_STOP_REASON,
             false
         )
@@ -413,7 +413,7 @@ class RaiDownloadTracker @OptIn(UnstableApi::class) constructor
         DownloadService.sendRemoveDownload(
             context,
             RaiDownloadService::class.java,
-            getId(listItem),
+            listItem.playerSource ?: "",
             false
         )
     }
@@ -775,16 +775,14 @@ class RaiDownloadTracker @OptIn(UnstableApi::class) constructor
         return null
     }
 
-    private fun getId(item: RaiDownloadItem, forcePathId: Boolean = false): String {//ID sarà solo pathId
-//        return if (forcePathId) (item.ua + item.pathId + item.programPathId).hashCode().toString()
-//        else
-//            (item.contentItemId ?: (item.ua + item.pathId + item.programPathId).hashCode().toString())
-        return item.pathId
+    private fun getId(item: RaiDownloadItem, forcePathId: Boolean = false): String {
+        return if (forcePathId) (item.ua + item.pathId + item.programPathId).hashCode().toString()
+        else
+            (item.contentItemId ?: (item.ua + item.pathId + item.programPathId).hashCode().toString())
     }
 
     private fun getIdWithoutProgram(item: RaiDownloadItem): String {
-//        return (item.ua + item.pathId + "").hashCode().toString()
-        return item.pathId
+        return (item.ua + item.pathId + "").hashCode().toString()
     }
 
     companion object {

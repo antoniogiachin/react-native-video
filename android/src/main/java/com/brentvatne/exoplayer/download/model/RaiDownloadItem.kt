@@ -47,7 +47,9 @@ data class RaiDownloadItem(
     @SerializedName("mediapolisUrl")
     val mediapolisUrl: String? = null,
     @SerializedName("expireDate")
-    val expireDate: String? = null
+    val expireDate: String? = null,
+    @SerializedName("playerSource")
+    var playerSource: String?,
 )
 
 fun ReadableMap.toRaiDownloadItem(): RaiDownloadItem {
@@ -79,7 +81,8 @@ fun ReadableMap.toRaiDownloadItem(): RaiDownloadItem {
         videoInfo = getMap("videoInfo")?.toDownloadVideoInfo(),
         programInfo = getMap("programInfo")?.toDownloadVideoInfo(),
         drm = getMap("drm")?.toLicenseServer(),
-        mediapolisUrl = getString("mediapolisUrl")
+        mediapolisUrl = getString("mediapolisUrl"),
+        playerSource = getString("playerSource")
     )
 }
 
@@ -101,6 +104,10 @@ fun RaiDownloadItem.toReadableMap(): WritableMap {
     ret.putMap("progress", progress)
 
     ret.putBoolean("isDrm", isDrm)
+    ret.putString("url", downloadableUrl)
+    ret.putString("expireDate", expireDate)
+    ret.putString("mediapolisUrl", mediapolisUrl)
+    ret.putString("playerSource", playerSource)
 
     return ret
 }

@@ -1,7 +1,6 @@
 package com.brentvatne.exoplayer.download.utils
 
 import android.net.Uri
-import androidx.annotation.OptIn
 import androidx.media3.common.util.UnstableApi
 import androidx.media3.common.util.Util
 import androidx.media3.exoplayer.offline.Download
@@ -77,7 +76,8 @@ fun ReactDownloadItem.toRaiDownloadItem(): RaiDownloadItem {
         expireDate = expireDate,
         downloadSizeMb = 0,
         bytesDownloaded = videoInfo?.bytesDownloaded ?: 0,
-        totalBytes = videoInfo?.totalBytes ?: 0
+        totalBytes = videoInfo?.totalBytes ?: 0,
+        playerSource = playerSource
     )
 }
 
@@ -91,7 +91,8 @@ fun RaiDownloadItem.toReactDownloadItem(): ReactDownloadItem {
         programInfo = programInfo,
         expireDate = expireDate,
         state = state.name,
-        ua = ua
+        ua = ua,
+        playerSource = playerSource
     )
 }
 
