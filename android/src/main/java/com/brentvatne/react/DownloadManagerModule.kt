@@ -138,11 +138,11 @@ class DownloadManagerModule(private val reactContext: ReactApplicationContext) :
     }
 
     @ReactMethod
-    fun getDownloadList(promise: Promise) {
+    fun getDownloadList(ua: String, promise: Promise) {
         Log.d(NAME, "getDownloadList")
         CoroutineScope(Dispatchers.IO).launch {
             try {
-                val list = downloadTracker?.getDownloadMap()?.values?.toList()?.filter { it.state == RaiDownloadState.COMPLETED }
+                val list = downloadTracker?.getDownloadMap()?.values?.toList()?.filter { it.state == RaiDownloadState.COMPLETED && it.ua == ua }
                 val array = Arguments.createArray()
 
                 if (list != null) {

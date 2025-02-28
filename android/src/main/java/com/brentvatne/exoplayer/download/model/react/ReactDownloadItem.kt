@@ -23,6 +23,8 @@ data class ReactDownloadItem(
     val expireDate: String? = null,
     @SerializedName("state")
     var state: String? = null,
+    @SerializedName("ua")
+    val ua: String?,
 ) {
     fun toWritableMap(): ReadableMap? {
         val map = Arguments.createMap()
@@ -43,6 +45,7 @@ data class ReactDownloadItem(
         programInfo?.let { map.putMap("programInfo", it.toWritableMap()) } ?: map.putNull("programInfo")
         expireDate?.let { map.putString("expireDate", it) } ?: map.putNull("expireDate")
         state?.let { map.putString("state", it) } ?: map.putNull("state")
+        ua?.let { map.putString("ua", it) } ?: map.putNull("ua")
 
         return map
     }
@@ -63,6 +66,7 @@ data class ReactDownloadItem(
         programInfo?.let { map.putMap("programInfo", it.toReadableMap()) } ?: map.putNull("programInfo")
         expireDate?.let { map.putString("expireDate", it) } ?: map.putNull("expireDate")
         state?.let { map.putString("state", it) } ?: map.putNull("state")
+        ua?.let { map.putString("ua", it) } ?: map.putNull("ua")
 
         return map
     }
@@ -242,7 +246,8 @@ fun ReadableMap.toReactDownloadItem(): ReactDownloadItem {
         videoInfo = videoInfo,
         programInfo = programInfo,
         expireDate = this.getString("expireDate") ?: "",
-        state = this.getString("state") ?: RaiDownloadState.QUEUED.name
+        state = this.getString("state") ?: RaiDownloadState.QUEUED.name,
+        ua = this.getString("ua") ?: ""
 
     )
 }

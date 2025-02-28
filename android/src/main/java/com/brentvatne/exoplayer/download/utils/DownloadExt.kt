@@ -59,7 +59,7 @@ fun String.getDrmLicenseQueryParams(): HashMap<String, String> {
 
 fun ReactDownloadItem.toRaiDownloadItem(): RaiDownloadItem {
     return RaiDownloadItem(
-        ua = null,
+        ua = ua,
         contentItemId = null,
         drmLicenseUrl = drm?.licenseServer,
         drmOperator = if(drm != null) "NAGRA" else null,
@@ -90,7 +90,8 @@ fun RaiDownloadItem.toReactDownloadItem(): ReactDownloadItem {
         videoInfo = videoInfo,
         programInfo = programInfo,
         expireDate = expireDate,
-        state = state.name
+        state = state.name,
+        ua = ua
     )
 }
 
