@@ -1,6 +1,7 @@
 package com.brentvatne.exoplayer.download
 
 import android.content.Context
+import android.graphics.Bitmap
 import android.net.Uri
 import android.os.Build
 import android.os.Handler
@@ -46,6 +47,7 @@ import com.brentvatne.exoplayer.download.utils.DownloadConstants.DRM_LICENSE_WID
 import com.brentvatne.exoplayer.download.utils.DownloadConstants.DRM_LICENSE_WORK_NAME
 import com.brentvatne.exoplayer.download.utils.DownloadConstants.PROGRAM_PATH_ID
 import com.brentvatne.exoplayer.download.utils.DownloadConstants.RAI_DOWNLOAD_DRM_LICENSE_FOLDER
+import com.brentvatne.exoplayer.download.utils.DownloadConstants.RAI_DOWNLOAD_IMAGE_FOLDER
 import com.brentvatne.exoplayer.download.utils.DownloadConstants.RAI_DOWNLOAD_SUBTITLE_FOLDER
 import com.brentvatne.exoplayer.download.utils.DownloadConstants.TAG
 import com.brentvatne.exoplayer.download.utils.DownloadConstants.USER
@@ -54,6 +56,7 @@ import com.brentvatne.exoplayer.download.utils.getDrmLicenseQueryParams
 import com.brentvatne.exoplayer.download.utils.toRaiDownloadItem
 import com.brentvatne.exoplayer.download.utils.toRaiDownloadState
 import com.brentvatne.react.DownloadManagerModule.Companion.DOWNLOAD_QUALITY_REQUESTED
+import com.bumptech.glide.Glide
 import com.google.gson.Gson
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -301,6 +304,19 @@ class RaiDownloadTracker @OptIn(UnstableApi::class) constructor
                     )
                     
                     raiDownloadItem.playerSource = getId(raiDownloadItem)
+
+                    raiDownloadItem.videoInfo?.templateImg = saveImage(
+                        applicationContext,
+                        raiDownloadItem.videoInfo?.templateImg ?: "",
+                        raiDownloadItem.playerSource + VIDEO_IMAGE 
+                    )
+
+                    raiDownloadItem.programInfo?.templateImg = saveImage(
+                        applicationContext,
+                        raiDownloadItem.programInfo?.templateImg ?: "",
+                        raiDownloadItem.playerSource + PROGRAM_IMAGE
+                    )
+
                     val downloadRequest = downloadHelper.getDownloadRequest(
                         raiDownloadItem.playerSource ?: "",
                         Util.getUtf8Bytes(Gson().toJson(raiDownloadItem))
@@ -463,6 +479,67 @@ class RaiDownloadTracker @OptIn(UnstableApi::class) constructor
         } ?: run {
             Log.e(TAG, "Error can't find download with contentId: $id")
             null
+        }
+    }
+
+    private fun saveImage(context: Context, imageUrl: String, filename: String): String {
+        return try {
+            writeImage(
+                context = context,
+                bitmap = Glide.with(context)
+                    .asBitmap()
+                    .load(imageUrl)
+                    .submit()
+                    .get(),
+                filename = filename
+            )
+        } catch (e: Exception) {
+            Log.e(TAG, "Error while create image file: ${e.message}")
+            ""
+        }
+    }
+
+    private fun writeImage(context: Context, bitmap: Bitmap, filename: String): String {
+        var savedImagePath = ""
+        val imageFileName = "$filename.jpg"
+        val storageDir =
+            File(context.filesDir.absolutePath + File.separator + RAI_DOWNLOAD_IMAGE_FOLDER)
+        var success = true
+
+        if (!storageDir.exists()) success = storageDir.mkdirs()
+
+        if (success) {
+            val imageFile = File(storageDir, imageFileName)
+            savedImagePath = imageFile.absolutePath
+            try {
+                val fOut: OutputStream = FileOutputStream(imageFile)
+                bitmap.compress(Bitmap.CompressFormat.JPEG, 100, fOut)
+                fOut.close()
+
+                Log.d(TAG, "File $savedImagePath saved")
+            } catch (e: Exception) {
+                e.printStackTrace()
+                Log.e(TAG, "Error while saving file $savedImagePath")
+            }
+        }
+
+        return savedImagePath
+    }
+
+    private fun deleteImage(context: Context, filename: String) {
+        val storageDir =
+            File(context.filesDir.absolutePath + File.separator + RAI_DOWNLOAD_IMAGE_FOLDER)
+
+        if (storageDir.exists()) {
+            val imageFile = File(filename)
+            if (imageFile.exists()) {
+                if (imageFile.delete()) Log.d(TAG, "File $filename deleted")
+                else Log.e(TAG, "Error while deleting image file $filename")
+            } else {
+                Log.e(TAG, "Error while deleting image file $filename, the file doesn't exist")
+            }
+        } else {
+            Log.e(TAG, "Error while deleting image file $filename, directory doesn't exist")
         }
     }
 
@@ -744,6 +821,8 @@ class RaiDownloadTracker @OptIn(UnstableApi::class) constructor
 
             raiDownloadItem?.run {
 
+                deleteImage(context, raiDownloadItem.videoInfo?.templateImg ?: "")
+                deleteImage(context, raiDownloadItem.programInfo?.templateImg ?: "")
                 deleteSubtitle(context, raiDownloadItem.downloadSubtitleList)
                 if (raiDownloadItem.isDrm) deleteDrmLicense(context, raiDownloadItem)
 
@@ -790,6 +869,8 @@ class RaiDownloadTracker @OptIn(UnstableApi::class) constructor
         private const val VTT_EXT = ".vtt"
         private const val GENERIC_STOP_REASON = 1
         private const val EMPTY_STOP_REASON = 0
+        private const val VIDEO_IMAGE = "_video"
+        private const val PROGRAM_IMAGE = "_program"
         private const val VIDEO_SUBTITLE = "_subtitle"
     }
 }

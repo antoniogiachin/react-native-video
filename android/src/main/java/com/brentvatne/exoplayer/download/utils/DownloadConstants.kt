@@ -5,6 +5,7 @@ object DownloadConstants {
     const val TAG = "DownloadLibrary"
     const val CHECK_DOWNLOADING_TIMER = 1000L
     const val RAI_DOWNLOAD_VIDEO_FOLDER = "RaiPlayDownload_v2"
+    const val RAI_DOWNLOAD_IMAGE_FOLDER = "RaiPlayDownloadImage_v2"
     const val RAI_DOWNLOAD_DRM_LICENSE_FOLDER = "RaiPlayDownloadDRMLicense_v2"
     const val RAI_DOWNLOAD_SUBTITLE_FOLDER = "RaiPlayDownloadSubtitle_v2"
     const val DRM_LICENSE_PREFIX = "DRM_LICENSE_"

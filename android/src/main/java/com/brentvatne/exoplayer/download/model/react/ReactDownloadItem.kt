@@ -102,7 +102,7 @@ data class LicenseServer(
 }
 
 data class DownloadVideoInfo(
-    val templateImg: String, // URL of the video image
+    var templateImg: String, 
     val title: String,
     val description: String,
     val mediaInfo: List<MediaItemDetail>? = null,
