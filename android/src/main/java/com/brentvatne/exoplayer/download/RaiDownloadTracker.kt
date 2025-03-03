@@ -115,9 +115,7 @@ class RaiDownloadTracker @OptIn(UnstableApi::class) constructor
                 }
             }
 
-        //postDownloadList()
         postDownloadProgressList()
-
         startDownloadRunnable()
     }
 
@@ -807,6 +805,8 @@ class RaiDownloadTracker @OptIn(UnstableApi::class) constructor
 
                 if(state == RaiDownloadState.COMPLETED)
                     postDownloadList()
+                else if (state == RaiDownloadState.PAUSED)
+                    postDownloadProgressList()
 
                 val downloading = downloadMap.filterValues { it.state == RaiDownloadState.DOWNLOADING }
                 if (downloading.isNotEmpty()) startDownloadRunnable()
@@ -852,6 +852,14 @@ class RaiDownloadTracker @OptIn(UnstableApi::class) constructor
             return download.request.uri
         }
         return null
+    }
+
+    fun getMediaItem(contentItemId: String): MediaItem? {
+        return downloadManager.downloadIndex.getDownload(contentItemId)?.request?.toMediaItem()
+            ?: run {
+                Log.e(TAG, "Error can't find download with contentId: $contentItemId")
+                null
+            }
     }
 
     private fun getId(item: RaiDownloadItem, forcePathId: Boolean = false): String {
