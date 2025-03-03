@@ -109,6 +109,7 @@ data class DownloadVideoInfo(
     val programPathId: String?,
     var bytesDownloaded: Long?,
     var totalBytes: Long?,
+    var id: String
 ) {
     fun toWritableMap(): ReadableMap? {
         val map = Arguments.createMap()
@@ -126,6 +127,7 @@ data class DownloadVideoInfo(
         map.putString("programPathId", programPathId)
         map.putDouble("bytesDownloaded", (bytesDownloaded?.toDouble() ?: 0) as Double)
         map.putDouble("totalBytes", (totalBytes?.toDouble() ?: 0) as Double)
+        map.putString("id", id)
         return map
     }
 
@@ -144,6 +146,7 @@ data class DownloadVideoInfo(
         map.putString("programPathId", programPathId)
         map.putDouble("bytesDownloaded", (bytesDownloaded?.toDouble() ?: 0) as Double)
         map.putDouble("totalBytes", (totalBytes?.toDouble() ?: 0) as Double)
+        map.putString("id", id)
         return map
     }
 }
@@ -213,7 +216,8 @@ fun ReadableMap.toReactDownloadItem(): ReactDownloadItem {
             mediaInfo = mediaInfoList,
             programPathId = videoInfoMap.getString("programPathId"),
             bytesDownloaded = if (videoInfoMap.hasKey("bytesDownloaded")) videoInfoMap.getDouble("bytesDownloaded").toLong() else 0L,
-            totalBytes = if (videoInfoMap.hasKey("totalBytes")) videoInfoMap.getDouble("totalBytes").toLong() else 0L
+            totalBytes = if (videoInfoMap.hasKey("totalBytes")) videoInfoMap.getDouble("totalBytes").toLong() else 0L,
+            id = videoInfoMap.getString("id") ?: ""
         )
     }
 
@@ -237,7 +241,8 @@ fun ReadableMap.toReactDownloadItem(): ReactDownloadItem {
             mediaInfo = mediaInfoList,
             programPathId = programInfoMap.getString("programPathId"),
             bytesDownloaded = if (programInfoMap.hasKey("bytesDownloaded")) programInfoMap.getDouble("bytesDownloaded").toLong() else 0L,
-            totalBytes = if (programInfoMap.hasKey("totalBytes")) programInfoMap.getDouble("totalBytes").toLong() else 0L
+            totalBytes = if (programInfoMap.hasKey("totalBytes")) programInfoMap.getDouble("totalBytes").toLong() else 0L,
+            id = programInfoMap.getString("id") ?: ""
         )
     }
 

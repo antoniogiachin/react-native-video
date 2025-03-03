@@ -1951,27 +1951,20 @@ public class ReactExoplayerView extends FrameLayout implements
                 this.setCmcdConfigurationFactory(null);
             }
 
-            boolean isDownload = source.isDownload();
             Uri uri = source.getUri();
-
-            if (isDownload) {
-                String uriString = uri.toString();
-                if(uriString.startsWith("file://")) {
-                    uriString = uriString.substring("file://".length());
-                }
+            String uriString = uri.toString();
+            if(uriString.startsWith("android.resource:/")){
+                uriString = uriString.substring("android.resource:/".length());
                 RaiDownloadItem downloadItem = downloadTracker.getDownloadByPathId(uriString);
                 if (downloadItem != null) {
                     Uri downloadedUri = downloadTracker.getDownloadedUri(downloadItem);
                     if (downloadedUri != null) {
                         this.source.setUri(downloadedUri);
                         this.source.setUriString(downloadedUri.toString());
-
-                    }
-                    else {
+                    } else {
                         return;
                     }
-                }
-                else {
+                } else {
                     return;
                 }
             }

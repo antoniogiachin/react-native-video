@@ -308,13 +308,13 @@ class RaiDownloadTracker @OptIn(UnstableApi::class) constructor
                     raiDownloadItem.videoInfo?.templateImg = saveImage(
                         applicationContext,
                         raiDownloadItem.videoInfo?.templateImg ?: "",
-                        raiDownloadItem.playerSource + VIDEO_IMAGE 
+                        PREFIX_IMAGE + raiDownloadItem.videoInfo?.id + VIDEO_IMAGE
                     )
 
                     raiDownloadItem.programInfo?.templateImg = saveImage(
                         applicationContext,
                         raiDownloadItem.programInfo?.templateImg ?: "",
-                        raiDownloadItem.playerSource + PROGRAM_IMAGE
+                        PREFIX_IMAGE + raiDownloadItem.programInfo?.id + PROGRAM_IMAGE
                     )
 
                     val downloadRequest = downloadHelper.getDownloadRequest(
@@ -869,6 +869,7 @@ class RaiDownloadTracker @OptIn(UnstableApi::class) constructor
         private const val VTT_EXT = ".vtt"
         private const val GENERIC_STOP_REASON = 1
         private const val EMPTY_STOP_REASON = 0
+        private const val PREFIX_IMAGE = "JPEG_"
         private const val VIDEO_IMAGE = "_video"
         private const val PROGRAM_IMAGE = "_program"
         private const val VIDEO_SUBTITLE = "_subtitle"

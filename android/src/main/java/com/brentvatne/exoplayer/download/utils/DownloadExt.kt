@@ -104,7 +104,8 @@ fun ReadableMap.toDownloadVideoInfo() : DownloadVideoInfo{
         mediaInfo = getArray("mediaInfo")?.toMediaInfo() ?: emptyList(),
         programPathId = getString("programPathId"),
         bytesDownloaded = if (hasKey("bytesDownloaded")) getDouble("bytesDownloaded").toLong() else 0L,
-        totalBytes = if (hasKey("totalBytes")) getDouble("totalBytes").toLong() else 0L
+        totalBytes = if (hasKey("totalBytes")) getDouble("totalBytes").toLong() else 0L,
+        id = getString("id") ?: ""
     )
 }
 
