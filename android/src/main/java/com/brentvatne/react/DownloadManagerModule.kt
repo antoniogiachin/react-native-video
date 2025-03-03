@@ -63,7 +63,7 @@ class DownloadManagerModule(private val reactContext: ReactApplicationContext) :
             reactContext.getJSModule(DeviceEventManagerModule.RCTDeviceEventEmitter::class.java)
                 .emit("onDownloadProgress", readableArray)
         }
-        downloadTracker?.subscribeError {//TODO CHECK
+        downloadTracker?.subscribeError {
             val readableMap = Arguments.createMap()
             readableMap.putString("pathId", it.pathId)
             readableMap.putString("programPathId", it.programPathId)
@@ -71,14 +71,14 @@ class DownloadManagerModule(private val reactContext: ReactApplicationContext) :
             reactContext.getJSModule(DeviceEventManagerModule.RCTDeviceEventEmitter::class.java)
                 .emit("onDownloadError", readableMap)
         }
-        downloadTracker?.subscribeRenewLicense {//TODO da togliere/fare direttamente in nativo
+        downloadTracker?.subscribeRenewLicense {
             val readableMap = Arguments.createMap()
             readableMap.putMap("item", it.item.toReadableMap())
             readableMap.putBoolean("result", it.result)
             reactContext.getJSModule(DeviceEventManagerModule.RCTDeviceEventEmitter::class.java)
                 .emit("onRenewLicense", readableMap)
         }
-        downloadTracker?.retrieveDownloads(reactContext)//TODO sostituire con getDownloadList
+        downloadTracker?.retrieveDownloads(reactContext)
     }
 
     @ReactMethod
@@ -112,11 +112,11 @@ class DownloadManagerModule(private val reactContext: ReactApplicationContext) :
         )
     }
 
-    fun renewDrmLicense(item: ReadableMap) {
-        Log.d(NAME, "renewDrmLicense $item")
-        val downloadItem = item.toRaiDownloadItem()
-        downloadTracker?.refreshDrmLicense(reactContext, downloadItem)
-    }
+//    fun renewDrmLicense(item: ReadableMap) {
+//        Log.d(NAME, "renewDrmLicense $item")
+//        val downloadItem = item.toRaiDownloadItem()
+//        downloadTracker?.refreshDrmLicense(reactContext, downloadItem)
+//    }
 
     @ReactMethod
     fun setQuality(quality: String) {

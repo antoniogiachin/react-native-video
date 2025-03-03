@@ -741,7 +741,6 @@ class RaiDownloadTracker @OptIn(UnstableApi::class) constructor
         }
     }
 
-    //TODO
     fun refreshDrmLicense(
         context: Context,
         item: RaiDownloadItem
