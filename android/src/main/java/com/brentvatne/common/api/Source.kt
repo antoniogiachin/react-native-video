@@ -199,11 +199,6 @@ class Source {
                 )
             }
 
-            if (identifier <= 0) {
-                // cannot find identifier of content
-                DebugLog.d(TAG, "cannot find identifier")
-                return null
-            }
             return Uri.Builder().scheme(ContentResolver.SCHEME_ANDROID_RESOURCE).path(identifier.toString()).build()
         }
 
