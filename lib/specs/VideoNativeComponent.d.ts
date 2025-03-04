@@ -18,6 +18,7 @@ export type VideoSrc = Readonly<{
     uri?: string;
     isNetwork?: boolean;
     isAsset?: boolean;
+    isLocalAssetFile?: boolean;
     shouldCache?: boolean;
     type?: string;
     mainVer?: Int32;
@@ -33,6 +34,8 @@ export type VideoSrc = Readonly<{
     textTracksAllowChunklessPreparation?: boolean;
     textTracks?: TextTracks;
     ad?: AdsConfig;
+    minLoadRetryCount?: Int32;
+    bufferConfig?: BufferConfig;
 }>;
 type DRMType = WithDefault<string, 'widevine'>;
 type DebugConfig = Readonly<{
@@ -290,7 +293,7 @@ export interface VideoNativeProps extends ViewProps {
     preventsDisplaySleepDuringVideoPlayback?: boolean;
     preferredForwardBufferDuration?: Float;
     playWhenInactive?: boolean;
-    pictureInPicture?: boolean;
+    enterPictureInPictureOnLeave?: boolean;
     ignoreSilentSwitch?: WithDefault<string, 'inherit'>;
     mixWithOthers?: WithDefault<string, 'inherit'>;
     rate?: Float;
@@ -301,12 +304,10 @@ export interface VideoNativeProps extends ViewProps {
     restoreUserInterfaceForPIPStopCompletionHandler?: boolean;
     debug?: DebugConfig;
     showNotificationControls?: WithDefault<boolean, false>;
-    bufferConfig?: BufferConfig;
     currentPlaybackTime?: Double;
     disableDisconnectError?: boolean;
     focusable?: boolean;
     hideShutterView?: boolean;
-    minLoadRetryCount?: Int32;
     reportBandwidth?: boolean;
     subtitleStyle?: SubtitleStyle;
     viewType?: Int32;

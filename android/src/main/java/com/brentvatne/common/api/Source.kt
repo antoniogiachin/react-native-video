@@ -25,7 +25,7 @@ import java.util.Objects
  */
 class Source {
     /** String value of source to playback */
-    private var uriString: String? = null
+    var uriString: String? = null
 
     /** Parsed value of source to playback */
     var uri: Uri? = null
@@ -199,11 +199,6 @@ class Source {
                 )
             }
 
-            if (identifier <= 0) {
-                // cannot find identifier of content
-                DebugLog.d(TAG, "cannot find identifier")
-                return null
-            }
             return Uri.Builder().scheme(ContentResolver.SCHEME_ANDROID_RESOURCE).path(identifier.toString()).build()
         }
 

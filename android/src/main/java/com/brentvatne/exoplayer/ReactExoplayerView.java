@@ -10,9 +10,9 @@ import static androidx.media3.common.C.TIME_END_OF_SOURCE;
 import android.annotation.SuppressLint;
 import android.app.Activity;
 import android.app.ActivityManager;
+import android.app.AlertDialog;
 import android.app.PictureInPictureParams;
 import android.app.RemoteAction;
-import android.app.AlertDialog;
 import android.content.ComponentName;
 import android.content.Context;
 import android.content.Intent;
@@ -120,6 +120,9 @@ import com.brentvatne.common.api.VideoTrack;
 import com.brentvatne.common.react.VideoEventEmitter;
 import com.brentvatne.common.toolbox.DebugLog;
 import com.brentvatne.common.toolbox.ReactBridgeUtils;
+import com.brentvatne.exoplayer.download.RaiDownloadTracker;
+import com.brentvatne.exoplayer.download.model.RaiDownloadItem;
+import com.brentvatne.exoplayer.download.utils.DiUtils;
 import com.brentvatne.react.BuildConfig;
 import com.brentvatne.react.R;
 import com.brentvatne.react.ReactNativeVideoManager;
@@ -269,6 +272,8 @@ public class ReactExoplayerView extends FrameLayout implements
 
     private final String instanceId = String.valueOf(UUID.randomUUID());
 
+    private RaiDownloadTracker downloadTracker;
+
     private CmcdConfiguration.Factory cmcdConfigurationFactory;
 
     public void setCmcdConfigurationFactory(CmcdConfiguration.Factory factory) {
@@ -336,6 +341,8 @@ public class ReactExoplayerView extends FrameLayout implements
         audioBecomingNoisyReceiver = new AudioBecomingNoisyReceiver(themedReactContext);
         audioFocusChangeListener = new OnAudioFocusChangedListener(this, themedReactContext);
         pictureInPictureReceiver = new PictureInPictureReceiver(this, themedReactContext);
+        downloadTracker = DiUtils.INSTANCE.getDownloadTracker(context);
+
     }
 
     private boolean isPlayingAd() {
@@ -851,12 +858,18 @@ public class ReactExoplayerView extends FrameLayout implements
                         .setEnableDecoderFallback(true)
                         .forceEnableMediaCodecAsynchronousQueueing();
 
-        DefaultMediaSourceFactory mediaSourceFactory = new DefaultMediaSourceFactory(mediaDataSourceFactory);
-        if (useCache) {
-            mediaSourceFactory.setDataSourceFactory(RNVSimpleCache.INSTANCE.getCacheFactory(buildHttpDataSourceFactory(true)));
+        Uri uri = source.getUri();
+        String uriString = uri.toString();
+        DefaultMediaSourceFactory mediaSourceFactory;
+        if(uriString.startsWith("android.resource:/")){
+            mediaSourceFactory = new DefaultMediaSourceFactory(DiUtils.INSTANCE.getDataSourceFactory(themedReactContext));
+        } else {
+            mediaSourceFactory = new DefaultMediaSourceFactory(mediaDataSourceFactory);
+            if (useCache) {
+                mediaSourceFactory.setDataSourceFactory(RNVSimpleCache.INSTANCE.getCacheFactory(buildHttpDataSourceFactory(true)));
+            }
+            mediaSourceFactory.setLocalAdInsertionComponents(unusedAdTagUri -> adsLoader, exoPlayerView);
         }
-
-        mediaSourceFactory.setLocalAdInsertionComponents(unusedAdTagUri -> adsLoader, exoPlayerView);
 
         player = new ExoPlayer.Builder(getContext(), renderersFactory)
                 .setTrackSelector(self.trackSelector)
@@ -952,20 +965,55 @@ public class ReactExoplayerView extends FrameLayout implements
             DebugLog.e(TAG, "Failed to initialize DRM Session Manager Framework!");
             return;
         }
-        // init source to manage ads and external text tracks
-        MediaSource videoSource = buildMediaSource(runningSource.getUri(),
-                runningSource.getExtension(),
-                drmSessionManager,
-                runningSource.getCropStartMs(),
-                runningSource.getCropEndMs());
-        MediaSource mediaSourceWithAds = initializeAds(videoSource, runningSource);
-        MediaSource mediaSource = Objects.requireNonNullElse(mediaSourceWithAds, videoSource);
+        
+        Uri uri = runningSource.getUri();
+        String uriString = uri.toString();
+        DefaultMediaSourceFactory mediaSourceFactory;
+        MediaSource mediaSource;
+        if(uriString.startsWith("android.resource:/")) {
+            uriString = uriString.substring("android.resource:/".length());
+            RaiDownloadItem downloadItem = downloadTracker.getDownloadByPathId(uriString);
+            if (downloadItem != null) {
+                Uri downloadedUri = downloadTracker.getDownloadedUri(downloadItem);
+                if (downloadedUri != null) {
+                    this.source.setUri(downloadedUri);
+                    this.source.setUriString(downloadedUri.toString());
+                    MediaItem mediaItem = downloadTracker.getMediaItem(themedReactContext, downloadItem);
+                    mediaSourceFactory = new DefaultMediaSourceFactory(DiUtils.INSTANCE.getDataSourceFactory(themedReactContext));
+                    DrmSessionManagerProvider drmProvider;
+                    if (drmSessionManager != null) {
+                        drmProvider = ((_mediaItem) -> drmSessionManager);
+                    } else {
+                        drmProvider = new DefaultDrmSessionManagerProvider();
+                    }
+                    mediaSource = mediaSourceFactory
+                            .setDrmSessionManagerProvider(drmProvider)
+                            .createMediaSource(mediaItem);
+                } else {
+                    return;
+                }
+            } else {
+                return;
+            }
+        } else {
 
-        MediaSource subtitlesSource = buildTextSource();
-        if (subtitlesSource != null) {
-            MediaSource[] mediaSourceArray = {mediaSource, subtitlesSource};
-            mediaSource = new MergingMediaSource(mediaSourceArray);
+            // init source to manage ads and external text tracks
+            MediaSource videoSource = buildMediaSource(runningSource.getUri(),
+                    runningSource.getExtension(),
+                    drmSessionManager,
+                    runningSource.getCropStartMs(),
+                    runningSource.getCropEndMs());
+            MediaSource mediaSourceWithAds = initializeAds(videoSource, runningSource);
+            mediaSource = Objects.requireNonNullElse(mediaSourceWithAds, videoSource);
+
+            MediaSource subtitlesSource = buildTextSource();
+            if (subtitlesSource != null) {
+                MediaSource[] mediaSourceArray = {mediaSource, subtitlesSource};
+                mediaSource = new MergingMediaSource(mediaSourceArray);
+            }
         }
+
+
 
         // wait for player to be set
         while (player == null) {
