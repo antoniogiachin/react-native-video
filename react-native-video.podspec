@@ -49,6 +49,11 @@ Pod::Spec.new do |s|
         'OTHER_SWIFT_FLAGS' => '$(inherited) -D USE_VIDEO_CACHING'
       }
     end
+
+    ss.subspec "Download" do |sss|
+      sss.source_files = "ios/Download/**/*.{h,m,swift,mm}"
+      sss.dependency "Alamofire"
+    end
   end
 
   # Use install_modules_dependencies helper to install the dependencies if React Native version >=0.71.0.
