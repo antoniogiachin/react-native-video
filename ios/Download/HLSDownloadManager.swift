@@ -26,8 +26,11 @@ public class HLSDownloadManager {
       assetDownloader.delegate = self
   }
   
-  public func resume(download: DownloadModel, licenseData: RCTMediapolisModelLicenceServerMapDRMLicenceUrl? = nil) {
-      if let download = getDownload(download: download), let url = download.location {
+    public func resume(
+        _ download: DownloadModel,
+        licenseData: RCTMediapolisModelLicenceServerMapDRMLicenceUrl? = nil
+    ) {
+      if let download = get(download), let url = download.location {
           let avAsset = AVURLAsset(url: url)
           assetDownloader.resume(assetInfo: AssetInfo(identifier: download.identifier, avUrlAsset: avAsset, licenseData: nil, bitrate: download.bitrate))
       } else if let url = download.location {
@@ -61,14 +64,13 @@ public class HLSDownloadManager {
       }
   }
   
-  public func pause(download: DownloadMetadataProtocol) {
-      if let identifier = getDownload(download: download)?.identifier {
+  public func pause(_ download: DownloadMetadataProtocol) {
+      if let identifier = get(download)?.identifier {
           assetDownloader.cancelDownloadOfAsset(identifier: identifier)
       }
   }
   
-  
-  public func getDownload(download: DownloadMetadataProtocol) -> DownloadMetadataProtocol? {
+  public func get(_ download: DownloadMetadataProtocol) -> DownloadMetadataProtocol? {
       return downloads.first(where: { model in
           model.identifier == download.identifier
       })
@@ -80,9 +82,9 @@ public class HLSDownloadManager {
       })
   }
   
-  public func deleteDownload(download: DownloadMetadataProtocol) {
+  public func delete(_ download: DownloadMetadataProtocol) {
       
-      if let download = getDownload(download: download) {
+      if let download = get(download) {
           
           assetDownloader.cancelDownloadOfAsset(identifier: download.identifier)
           
@@ -109,9 +111,7 @@ public class HLSDownloadManager {
       
       downloads.removeAll(where: { model in
           model.identifier == download.identifier
-          
       })
-      
   }
   
   public func notifyError(error: Error, download: DownloadModel) {
@@ -170,7 +170,7 @@ extension HLSDownloadManager: AssetDownloaderDelegate {
     func downloadError(assetInfo: AssetInfo, error: Error) {
         if let download = getDownload(assetInfo: assetInfo) {
             notifyError(error: error, download: download)
-            deleteDownload(download: download)
+            delete(download)
         }
     }
     
@@ -181,7 +181,4 @@ extension HLSDownloadManager: AssetDownloaderDelegate {
     func downloadCkcAvailable(assetInfo: AssetInfo, ckc: Data) {
         updateDownloads(assetInfo: assetInfo, ckcData: ckc)
     }
-    
 }
-
-

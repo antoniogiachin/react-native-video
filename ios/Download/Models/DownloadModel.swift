@@ -7,7 +7,6 @@
 
 import Foundation
 
-
 public class DownloadModel: DownloadMetadataProtocol, Decodable, RCTModelEncodable {
     
     public var identifier: String {
@@ -78,7 +77,10 @@ public class DownloadModel: DownloadMetadataProtocol, Decodable, RCTModelEncodab
         guard let pathId = input["pathId"] as? String else {
             return nil
         }
-        guard let programPathId = input["programPathId"] as? String else {
+        guard
+            let programInfo = input["programInfo"] as? NSDictionary,
+            let programPathId = programInfo["programPathId"] as? String
+        else {
             return nil
         }
         guard let ua = input["ua"] as? String else {
@@ -149,6 +151,4 @@ public class DownloadModel: DownloadMetadataProtocol, Decodable, RCTModelEncodab
             _location = newValue
         }
     }
-    
-    
 }
