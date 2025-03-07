@@ -1,0 +1,36 @@
+//
+//  ProgramInfoModel.swift
+//  react-native-video
+//
+//  Created by Davide Balistreri on 07/03/25.
+//
+
+import Foundation
+
+public struct VideoInfoModel: Codable {
+    let templateImg: String
+    let title: String
+    let description: String
+    let mediaInfo: [MediaItemDetail]?
+    let bytesDownloaded: Double?
+    let totalBytes: Double?
+    let id: String?
+}
+
+public struct ProgramInfoModel: Codable {
+    let templateImg: String
+    let title: String
+    let description: String
+    let mediaInfo: [MediaItemDetail]?
+    let bytesDownloaded: Double?
+    let totalBytes: Double?
+    let id: String?
+    
+    let programPathId: String?
+}
+
+public struct MediaItemDetail: Codable {
+    let key: String
+    let type: String
+    let value: String
+}

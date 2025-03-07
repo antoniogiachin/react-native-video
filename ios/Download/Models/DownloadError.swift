@@ -7,25 +7,23 @@
 
 import Foundation
 
-struct DownloadError: RCTModelEncodable {
+struct DownloadError: ReactDictionaryConvertible {
     let ua: String
     let pathId: String
     let programPathId: String
     let message: String
     
-    init(downloadInput: NSDictionary, msg: String) {
-        pathId = downloadInput["pathId"] as? String ?? ""
-        programPathId = downloadInput["programPathId"] as? String ?? ""
-        ua = downloadInput["ua"] as? String ?? ""
+    init(download: [String: Any], msg: String) {
+        pathId = download["pathId"] as? String ?? ""
+        programPathId = download["programPathId"] as? String ?? ""
+        ua = download["ua"] as? String ?? ""
         message = msg
     }
     
-    init(downloadModel: DownloadModel, msg: String) {
-        pathId = downloadModel.pathId
-        programPathId = downloadModel.programPathId
-        ua = downloadModel.ua
+    init(with model: NewDownloadModel, msg: String) {
+        pathId = model.pathId
+        programPathId = model.programInfo?.programPathId ?? ""
+        ua = model.ua
         message = msg
     }
-    
-    
 }

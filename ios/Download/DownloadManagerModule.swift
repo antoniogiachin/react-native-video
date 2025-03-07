@@ -16,57 +16,57 @@ public class DownloadManagerModule: NSObject {
         HLSDownloadManager.shared.notifyDownloadsChanged()
     }
     
-    @objc func start(_ item: NSDictionary) {
-        getModelFromDictElseNotifyError(item: item) { model, licenseData in
+    @objc func start(_ item: [String: Any]) {
+        getModelFromDictElseNotifyError(item) { model, licenseData in
             HLSDownloadManager.shared.resume(model, licenseData: licenseData)
         }
     }
     
-    @objc func resume(_ item: NSDictionary) {
-        getModelFromDictElseNotifyError(item: item) { model, _ in
+    @objc func resume(_ item: [String: Any]) {
+        getModelFromDictElseNotifyError(item) { model, _ in
             HLSDownloadManager.shared.resume(model)
         }
     }
     
-    @objc func pause(_ item: NSDictionary) {
-        getModelFromDictElseNotifyError(item: item) { model, _ in
+    @objc func pause(_ item: [String: Any]) {
+        getModelFromDictElseNotifyError(item) { model, _ in
             HLSDownloadManager.shared.pause(model)
         }
     }
     
-    @objc func delete(_ item: NSDictionary) {
-        if let model = DownloadModel(input: item) {
+    @objc func delete(_ item: [String: Any]) {
+        if let model = NewDownloadModel.from(item) {
             HLSDownloadManager.shared.delete(model)
         }
     }
     
-    @objc func batchDelete(_ items: [NSDictionary]) {
+    @objc func batchDelete(_ items: [[String: Any]]) {
         for item in items {
-            if let model = DownloadModel(input: item) {
+            if let model = NewDownloadModel.from(item) {
                 HLSDownloadManager.shared.delete(model)
             }
         }
     }
     
-    @objc func renewDrmLicense(_ item: NSDictionary) {
-        getModelFromDictElseNotifyError(item: item) { model, licenseData in
-            HLSDownloadManager.shared.renew(download: model, licenseData: licenseData)
+    @objc func renewDrmLicense(_ item: [String: Any]) {
+        getModelFromDictElseNotifyError(item) { model, licenseData in
+//            HLSDownloadManager.shared.renew(download: model, licenseData: licenseData)
         }
     }
     
-    @objc func setQuality(_ quality: NSString) {
-        DownloadManagerModule.SELECTED_QUALITY = DownloadQualityOptions(rawValue: quality as String) ?? .MEDIUM
+    @objc func setQuality(_ quality: String) {
+        DownloadManagerModule.SELECTED_QUALITY = DownloadQualityOptions(rawValue: quality) ?? .MEDIUM
     }
     
     private func getModelFromDictElseNotifyError(
-        item: NSDictionary,
-        callback: (DownloadModel, RCTMediapolisModelLicenceServerMapDRMLicenceUrl?) -> Void
+        _ item: [String: Any],
+        callback: (NewDownloadModel, RCTMediapolisModelLicenceServerMapDRMLicenceUrl?) -> Void
     ) {
-        guard let downloadInput = DownloadModel(input: item) else {
+        guard let download = NewDownloadModel.from(item) else {
             DownloadEventEmitter.shared?.dispatch(
                 withName: SupportedPlayerEmitterEvents.onError.rawValue,
                 body: DownloadError(
-                    downloadInput: item,
+                    download: item,
                     msg: "cannot run download task, it's possible that pathId, programPathId or ua is missing"
                 )
             )
@@ -74,12 +74,12 @@ public class DownloadManagerModule: NSObject {
         }
         
         guard let drm = item["drm"] as? NSDictionary else {
-            callback(downloadInput, nil)
+            callback(download, nil)
             return
         }
         
         let licenseData = RCTMediapolisModelLicenceServerMapDRMLicenceUrl(dictionary: drm)
-        callback(downloadInput, licenseData)
+        callback(download, licenseData)
     }
     
     @objc func getDownloadList(

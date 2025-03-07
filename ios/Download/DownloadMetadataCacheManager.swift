@@ -61,38 +61,19 @@ public class DownloadMetadataCacheManager {
         return downloads?.reduce([], +)
     }
     
-    private func getNewDownloads() -> [DownloadModel]? {
-        do {
-            let data = defaults.object(forKey: DownloadMetadataCacheManager.MEDIA_CACHE_KEY_DEFAULTS) as? Data
-            if let data {
-                let downloads = try PropertyListDecoder().decode(Array<DownloadModel>.self, from: data)
-                return downloads
-            }
-            return nil
-        } catch let error {
-            logger.error("\(error)")
-            return nil
-        }
-    }
-    
-    public func getDownloads() -> [DownloadModel] {
-        var downloads: [DownloadModel] = []
-        if let oldDownloads = getOldDownloads() {
-            downloads.append(contentsOf: oldDownloads)
-        }
-        if let newDownloads = getNewDownloads() {
+    public func get() -> [NewDownloadModel] {
+        var downloads: [NewDownloadModel] = []
+//        if let oldDownloads = getOldDownloads() {
+//            downloads.append(contentsOf: oldDownloads)
+//        }
+        if let newDownloads = UserDefaults.standard.getDownloads() {
             downloads.append(contentsOf: newDownloads)
         }
         return downloads
     }
     
-    public func saveDownloads(downloads: [DownloadModel]) {
-        do {
-            let encoded = try PropertyListEncoder().encode(downloads)
-            defaults.setValue(encoded, forKey: DownloadMetadataCacheManager.MEDIA_CACHE_KEY_DEFAULTS)
-        } catch let error {
-            logger.error("\(error)")
-        }
+    public func save(_ downloads: [NewDownloadModel]) {
+        UserDefaults.standard.setDownloads(downloads)
     }
     
     public static func cacheDirectoryPath() -> URL {

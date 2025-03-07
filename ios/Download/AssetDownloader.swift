@@ -33,7 +33,6 @@ class AssetDownloader: NSObject {
     //MARK: - PUBLIC
     
     override init() {
-        
         super.init()
         
         // Create the configuration for the AVAssetDownloadURLSession
@@ -48,16 +47,11 @@ class AssetDownloader: NSObject {
         // Create the AVAssetDownloadURLSession using the configuration
         assetDownloadURLSession = AVAssetDownloadURLSession(configuration: backgroundConfiguration,
                                                             assetDownloadDelegate: self, delegateQueue: OperationQueue.main)
-        
-        
-        
-        
     }
     
     func setDelegate(_ delegate: AssetDownloaderDelegate) {
         self.delegate = delegate
     }
-    
     
     func resume(assetInfo: AssetInfo) {
         
@@ -82,21 +76,16 @@ class AssetDownloader: NSObject {
                 guard let self = self else { return }
                 self.drmManagers.removeAll{ $0 == drmManager}
                 self.delegate?.downloadError(assetInfo: assetInfo, error: error)
-                
             }
             drmManager.drmLicenceBecomeReady = drmLicenceBecomeReady
             drmManager.drmLicenceFailed = drmLicenceFailed
             drmManager.start()
             
             drmManagers.append(drmManager)
-            
         } else {
             self.startCachingtask(assetInfo: assetInfo)
         }
-        
-        
     }
-    
     
     func renew(assetInfo: AssetInfo, completion: ((Result<Data, Error>) -> Void)? = nil) {
         
@@ -125,9 +114,7 @@ class AssetDownloader: NSObject {
         drmManager.start()
         
         drmManagers.append(drmManager)
-        
     }
-    
     
     // Canceles the download task
     func cancelDownloadOfAsset(identifier: String) {
@@ -144,7 +131,6 @@ class AssetDownloader: NSObject {
             task.cancel()
             logger.debug("ASSET DOWNLOADER: Cancelling download of \(String(describing: task.taskDescription))")
         }
-        
     }
     
 //    func pauseAll() {
@@ -209,7 +195,6 @@ class AssetDownloader: NSObject {
                 assetInfo.bitrate = bitrate
             }
             
-            
             if let audibleGroup = avUrlAsset.mediaSelectionGroup(forMediaCharacteristic: .audible) {
                 audibleGroup.options.forEach({ option in
                     if let mutableMediaSelection = avUrlAsset.preferredMediaSelection.mutableCopy() as? AVMutableMediaSelection {
@@ -254,8 +239,6 @@ class AssetDownloader: NSObject {
         // Notify change state
         self.delegate?.downloadStatusChanged(assetInfo: assetInfo, status: .Downloading)
     }
-    
-    
 }
 
 
@@ -316,7 +299,6 @@ extension AssetDownloader: AVAssetDownloadDelegate {
             logger.debug("ASSET DOWNLOADER: asset not present in activeDownloadsMap")
         }
     }
-    
     
     func urlSession(_ session: URLSession, aggregateAssetDownloadTask: AVAggregateAssetDownloadTask, didLoad timeRange: CMTimeRange, totalTimeRangesLoaded loadedTimeRanges: [NSValue], timeRangeExpectedToLoad: CMTimeRange, for mediaSelection: AVMediaSelection) {
         

@@ -7,7 +7,7 @@
 
 import Foundation
 
-public class RCTExternalSubtitleModel: Decodable, RCTModelEncodable {
+public class RCTExternalSubtitleModel: Decodable, ReactDictionaryConvertible {
     var id: String?
     var label: String?
     var url: String?
