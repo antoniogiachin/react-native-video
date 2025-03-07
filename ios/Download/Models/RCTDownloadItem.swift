@@ -7,7 +7,7 @@
 
 import Foundation
 
-public struct RCTDownloadItem: RCTModelEncodable {
+public struct RCTDownloadItem: ReactDictionaryConvertible {
   let ua: String
   let pathId: String
   let programPathId: String

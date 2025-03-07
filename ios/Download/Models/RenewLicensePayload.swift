@@ -7,7 +7,7 @@
 
 import Foundation
 
-struct RenewLicensePayload: RCTModelEncodable {
+struct RenewLicensePayload: ReactDictionaryConvertible {
   let item: RCTDownloadItem
   let result: Bool
 }

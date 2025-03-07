@@ -7,7 +7,7 @@
 
 import Foundation
 
-public struct RCTDownloadProgress: Decodable, RCTModelEncodable {
+public struct RCTDownloadProgress: Decodable, ReactDictionaryConvertible {
     public let downloaded: Double
     public let total: Double
 }

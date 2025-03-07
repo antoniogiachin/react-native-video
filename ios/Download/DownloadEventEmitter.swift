@@ -7,7 +7,6 @@
 
 import Foundation
 
-
 @objc(DownloadEventEmitter)
 class DownloadEventEmitter: RCTEventEmitter {
     
@@ -20,7 +19,6 @@ class DownloadEventEmitter: RCTEventEmitter {
     override func stopObserving() {
         hasListener = false
     }
-    
     
     override class func requiresMainQueueSetup() -> Bool {
         return true
@@ -43,9 +41,7 @@ class DownloadEventEmitter: RCTEventEmitter {
         if hasListener {
             sendEvent(withName: withName, body: body)
         }
-        
     }
-    
 }
 
 public enum SupportedDownloadEventEmitterEvents: String, CaseIterable {
@@ -53,6 +49,7 @@ public enum SupportedDownloadEventEmitterEvents: String, CaseIterable {
     case onDownloadError
     case onRenewLicense
     case onError
+    case onDownloadProgress
 }
 
 public enum SupportedPlayerEmitterEvents: String, CaseIterable {

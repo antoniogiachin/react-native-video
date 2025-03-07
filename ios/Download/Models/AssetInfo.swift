@@ -9,9 +9,7 @@ import Foundation
 import AVFoundation
 import CommonCrypto
 
-
 public class AssetInfo {
-    
     public let avUrlAsset: AVURLAsset
     public let licenseData: MediapolisModelLicenceServerMapDRMLicenceUrl?
     public var identifier: String
@@ -27,7 +25,6 @@ public class AssetInfo {
     public static func ==(lhs: AssetInfo, rhs: AssetInfo) -> Bool {
         return lhs.identifier == rhs.identifier
     }
-    
 }
 
 public extension AssetInfo {

@@ -7,8 +7,7 @@
 
 import Foundation
 
-public class DownloadModel: DownloadMetadataProtocol, Decodable, RCTModelEncodable {
-    
+public class DownloadModel: DownloadMetadataProtocol, Codable {
     public var identifier: String {
         return (pathId + programPathId + ua).sha1()
     }
@@ -21,11 +20,7 @@ public class DownloadModel: DownloadMetadataProtocol, Decodable, RCTModelEncodab
     
     public var ckcData: Data?
     
-  public var assetStatus: AssetInfo.RAIAVAssetStatus? {
-        didSet {
-            setBookmark()
-        }
-    }
+    public var assetStatus: AssetInfo.RAIAVAssetStatus?
     
     public var progress: RCTDownloadProgress?
     
@@ -51,27 +46,25 @@ public class DownloadModel: DownloadMetadataProtocol, Decodable, RCTModelEncodab
         self.assetStatus = old.assetStatus
         self._location = old._location
         self.bookmarkLocation = old.bookmarkLocation
-        setBookmark()
     }
     
-    required public init(from decoder: Decoder) throws {
-        let container = try decoder.container(keyedBy: CodingKeys.self)
-        self.pathId = try container.decode(String.self, forKey: .pathId)
-        self.programPathId = try container.decode(String.self, forKey: .programPathId)
-        self.ua = try container.decode(String.self, forKey: .ua)
-        self.ckcData = try container.decodeIfPresent(Data.self, forKey: .ckcData)
-      self.assetStatus = try container.decodeIfPresent(AssetInfo.RAIAVAssetStatus.self, forKey: .assetStatus)
-        if assetStatus == .Downloading {
-            // when launch app and previous download session wasnt finished, change to paused
-            assetStatus = .Paused
-        }
-        self.progress = try container.decodeIfPresent(RCTDownloadProgress.self, forKey: .progress)
-        self._location = try container.decodeIfPresent(URL.self, forKey: ._location)
-        self.bookmarkLocation = try container.decodeIfPresent(Data.self, forKey: .bookmarkLocation)
-        self.externalSubtitles = try container.decodeIfPresent([RCTExternalSubtitleModel].self, forKey: .externalSubtitles)
-        self.bitrate = try container.decodeIfPresent(Double.self, forKey: .bitrate)
-        setBookmark()
-    }
+//    required public init(from decoder: Decoder) throws {
+//        let container = try decoder.container(keyedBy: CodingKeys.self)
+//        self.pathId = try container.decode(String.self, forKey: .pathId)
+//        self.programPathId = try container.decode(String.self, forKey: .programPathId)
+//        self.ua = try container.decode(String.self, forKey: .ua)
+//        self.ckcData = try container.decodeIfPresent(Data.self, forKey: .ckcData)
+//      self.assetStatus = try container.decodeIfPresent(AssetInfo.RAIAVAssetStatus.self, forKey: .assetStatus)
+//        if assetStatus == .Downloading {
+//            // when launch app and previous download session wasnt finished, change to paused
+//            assetStatus = .Paused
+//        }
+//        self.progress = try container.decodeIfPresent(RCTDownloadProgress.self, forKey: .progress)
+//        self._location = try container.decodeIfPresent(URL.self, forKey: ._location)
+//        self.bookmarkLocation = try container.decodeIfPresent(Data.self, forKey: .bookmarkLocation)
+//        self.externalSubtitles = try container.decodeIfPresent([RCTExternalSubtitleModel].self, forKey: .externalSubtitles)
+//        self.bitrate = try container.decodeIfPresent(Double.self, forKey: .bitrate)
+//    }
     
     public init?(input: NSDictionary) {
         guard let pathId = input["pathId"] as? String else {
@@ -91,9 +84,9 @@ public class DownloadModel: DownloadMetadataProtocol, Decodable, RCTModelEncodab
         self.programPathId = programPathId
         self.ua = ua
         
-        if let url = input["url"] as? String, let location = URL(string: url) {
-            self.location = location
-        }
+//        if let url = input["url"] as? String, let location = URL(string: url) {
+//            self.location = location
+//        }
         
         if let externalSubtitles = input["externalSubtitles"] as? [NSDictionary] {
             self.externalSubtitles = externalSubtitles.map({ dict in
