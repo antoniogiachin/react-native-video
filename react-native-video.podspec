@@ -52,7 +52,6 @@ Pod::Spec.new do |s|
 
     ss.subspec "Download" do |sss|
       sss.source_files = "ios/Download/**/*.{h,m,swift,mm}"
-      sss.dependency "Alamofire"
     end
   end
 

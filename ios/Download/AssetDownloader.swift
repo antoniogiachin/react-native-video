@@ -44,9 +44,15 @@ class AssetDownloader: NSObject {
         // Makes the TCP sockets open even when the app is locked or suspended
         backgroundConfiguration.shouldUseExtendedBackgroundIdleMode = true
         
+        let queue = OperationQueue()
+        queue.qualityOfService = .userInitiated
+        
         // Create the AVAssetDownloadURLSession using the configuration
-        assetDownloadURLSession = AVAssetDownloadURLSession(configuration: backgroundConfiguration,
-                                                            assetDownloadDelegate: self, delegateQueue: OperationQueue.main)
+        assetDownloadURLSession = AVAssetDownloadURLSession(
+            configuration: backgroundConfiguration,
+            assetDownloadDelegate: self,
+            delegateQueue: queue
+        )
     }
     
     func setDelegate(_ delegate: AssetDownloaderDelegate) {

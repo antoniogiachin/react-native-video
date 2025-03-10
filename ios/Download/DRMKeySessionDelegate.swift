@@ -8,7 +8,6 @@
 import Foundation
 import AVFoundation
 
-
 public enum DRMKeySessionDelegateError: Error {
     case noContentId
     case noCertificateData
@@ -201,12 +200,10 @@ public class DRMKeySessionDelegate : NSObject, AVContentKeySessionDelegate {
                 completionHandler: keyRequestCompletionHandler)
         }else{
             if let certificateUrl = ConfigManager.shared.drmCertificates[.fairplay] {
-
-                NetworkManager.sessionManager()
-                    .request(certificateUrl, method: .get)
-                    .validate(statusCode: 200..<300)
-                    .responseData { response in
-                        switch response.result {
+                NetworkRequest(
+                    url: certificateUrl.absoluteString
+                ).responseData { result in
+                        switch result {
 
                         case .success(let value):
                             self.cachedCertificateData = value

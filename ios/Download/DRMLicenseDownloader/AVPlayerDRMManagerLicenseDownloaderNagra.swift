@@ -6,11 +6,13 @@
 //
 
 import Foundation
-import Alamofire
 
 public class AVPlayerDRMManagerLicenseDownloaderNagra : AVPlayerDRMManagerLicenseDownloader {
-    public override func download(licenseUrl: String, spcData: Data, completion: @escaping (Data?, Error?) -> Void) {
-        
+    public override func download(
+        licenseUrl: String,
+        spcData: Data,
+        completion: @escaping (Data?, Error?) -> Void
+    ) {
         guard let licenseUrl : URL = URL(string: licenseUrl)  else {
             completion(nil, CustomError.build(failureReason: "Download Nagra failed, licenseUrl cannot be nil or empty"))
             return

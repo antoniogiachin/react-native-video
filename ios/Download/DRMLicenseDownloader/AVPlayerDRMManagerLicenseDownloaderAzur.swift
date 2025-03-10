@@ -6,20 +6,23 @@
 //
 
 import Foundation
-import Alamofire
 
 public class AVPlayerDRMManagerLicenseDownloaderAzure : AVPlayerDRMManagerLicenseDownloader {
-    public override func download(licenseUrl: String, spcData: Data, completion: @escaping (Data?, Error?) -> Void) {
-
+    public override func download(
+        licenseUrl: String,
+        spcData: Data,
+        completion: @escaping (Data?, Error?) -> Void
+    ) {
         let headers : HTTPHeaders = ["Content-Type":"application/x-www-form-urlencoded"]
         let parameters : Parameters = ["spc": spcData.base64EncodedString()]
 
-        NetworkManager
-            .sessionManager()
-            .request(licenseUrl, method: .post, parameters: parameters, encoding: URLEncoding.httpBody, headers: headers)
-            .validate(statusCode: 200..<300)
-            .responseString(completionHandler: { response in
-                switch response.result {
+        NetworkRequest(
+            url: licenseUrl,
+            method: .post,
+            headers: headers,
+            parameters: parameters
+        ).responseString { result in
+                switch result {
                 case .success(let value):
                     
                     var stringData = value
@@ -37,6 +40,6 @@ public class AVPlayerDRMManagerLicenseDownloaderAzure : AVPlayerDRMManagerLicens
                 case .failure(let error):
                     completion(nil, error)
                 }
-            })
+        }
     }
 }
