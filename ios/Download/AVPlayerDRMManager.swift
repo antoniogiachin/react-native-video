@@ -7,7 +7,6 @@
 
 import Foundation
 import AVFoundation
-import Alamofire
 
 public protocol AVPlayerDRMManagerDelegate : AnyObject {
     func drmLicenceBecomeReady()
