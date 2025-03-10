@@ -21,9 +21,4 @@ RCT_EXTERN_METHOD(getDownloadList:(NSString *)ua
                   resolver:(RCTPromiseResolveBlock)resolve
                   rejecter:(RCTPromiseRejectBlock)reject)
 
-+ (BOOL)requiresMainQueueSetup
-{
-  return NO;
-}
-
 @end
