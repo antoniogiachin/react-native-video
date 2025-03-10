@@ -135,12 +135,12 @@ public class HLSDownloadManager {
   }
   
     public func notifyError(error: Error, download: NewDownloadModel) {
-        DownloadEventEmitter.shared?.dispatch(
-            withName: SupportedDownloadEventEmitterEvents.onDownloadError.rawValue,
+        DownloadManagerModule.sendEvent(
+            .onDownloadError,
             body: DownloadError(
                 with: download,
                 msg: error.localizedDescription
-            ).toDictionary()
+            )
         )
     }
   
@@ -181,15 +181,18 @@ public class HLSDownloadManager {
         let body = downloads.map { model in
             return model.toDictionary()
         }
-        DownloadEventEmitter.shared?.dispatch(
-            withName: SupportedDownloadEventEmitterEvents.onDownloadListChanged.rawValue,
+        DownloadManagerModule.sendEvent(
+            .onDownloadListChanged,
             body: body
         )
     }
   
   public func notifyRenewLicense(download: DownloadModel, result: Bool) {
-    let payload = RenewLicensePayload(item: RCTDownloadItem(model: download), result: result)
-    DownloadEventEmitter.shared?.dispatch(withName: SupportedDownloadEventEmitterEvents.onDownloadListChanged.rawValue, body: payload.toDictionary())
+      let payload = RenewLicensePayload(item: RCTDownloadItem(model: download), result: result)
+      DownloadManagerModule.sendEvent(
+        .onDownloadListChanged,
+        body: payload.toDictionary() ?? [:]
+      )
   }
 }
 

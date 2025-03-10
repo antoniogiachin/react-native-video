@@ -6,9 +6,10 @@
 //
 
 import Foundation
+import React
 
 @objc(DownloadManagerModule)
-public class DownloadManagerModule: NSObject {
+class DownloadManagerModule: RCTEventEmitter {
     
     public static var SELECTED_QUALITY: DownloadQualityOptions = .MEDIUM
     
@@ -63,8 +64,8 @@ public class DownloadManagerModule: NSObject {
         callback: (NewDownloadModel, RCTMediapolisModelLicenceServerMapDRMLicenceUrl?) -> Void
     ) {
         guard let download = NewDownloadModel.from(item) else {
-            DownloadEventEmitter.shared?.dispatch(
-                withName: SupportedPlayerEmitterEvents.onError.rawValue,
+            DownloadManagerModule.sendEvent(
+                .onDownloadError,
                 body: DownloadError(
                     download: item,
                     msg: "cannot run download task, it's possible that pathId, programPathId or ua is missing"
@@ -90,4 +91,49 @@ public class DownloadManagerModule: NSObject {
         let downloads = HLSDownloadManager.shared.downloads
         resolver(downloads.map { $0.toDictionary() })
     }
+    
+    // MARK: - Event emitter
+    
+    public override class func requiresMainQueueSetup() -> Bool {
+        false
+    }
+    
+    private var hasListener: Bool = false
+    
+    override func startObserving() {
+        hasListener = true
+    }
+    
+    override func stopObserving() {
+        hasListener = false
+    }
+    
+    private static var shared: DownloadManagerModule?
+    
+    override init() {
+        super.init()
+        DownloadManagerModule.shared = self
+    }
+    
+    static func sendEvent(_ event: DownloadManagerModuleEvent, body: Any) {
+        shared?.sendEvent(withName: event.rawValue, body: body)
+    }
+    
+    override func sendEvent(withName name: String, body: Any) {
+        if hasListener {
+            super.sendEvent(withName: name, body: body)
+        }
+    }
+    
+    override func supportedEvents() -> [String] {
+        DownloadManagerModuleEvent.allCases.map { $0.rawValue }
+    }
+}
+
+enum DownloadManagerModuleEvent: String, CaseIterable {
+    case onDownloadListChanged
+    case onDownloadError
+    case onRenewLicense
+    case onError
+    case onDownloadProgress
 }
