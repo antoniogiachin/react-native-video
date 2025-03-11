@@ -7,29 +7,29 @@
 
 import Foundation
 
-public struct VideoInfoModel: Codable {
+struct VideoInfoModel: Codable {
     let templateImg: String
     let title: String
     let description: String
     let mediaInfo: [MediaItemDetail]?
-    let bytesDownloaded: Double?
-    let totalBytes: Double?
+    var bytesDownloaded: Int?
+    var totalBytes: Int?
     let id: String?
 }
 
-public struct ProgramInfoModel: Codable {
+struct ProgramInfoModel: Codable {
     let templateImg: String
     let title: String
     let description: String
     let mediaInfo: [MediaItemDetail]?
-    let bytesDownloaded: Double?
-    let totalBytes: Double?
+    var bytesDownloaded: Int?
+    var totalBytes: Int?
     let id: String?
     
     let programPathId: String?
 }
 
-public struct MediaItemDetail: Codable {
+struct MediaItemDetail: Codable {
     let key: String
     let type: String
     let value: String

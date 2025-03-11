@@ -8,7 +8,6 @@
 import Foundation
 
 class DRMAssetIdGenerator {
-    
     public func generate(contentKeyIdentifier: String) -> Data? {
         let contentKeyIdentifierURL = URL(string: contentKeyIdentifier)
         let assetIDString = contentKeyIdentifierURL?.host
@@ -16,14 +15,12 @@ class DRMAssetIdGenerator {
         return assetIDData
     }
     
-    
     public class func getInstanceBy(drmOperator: DRMOperator) -> DRMAssetIdGenerator {
         if drmOperator == .nagra {
             return DRMAssetIdGeneratorNagra()
         }
         return DRMAssetIdGenerator()
     }
-    
 }
 
 class DRMAssetIdGeneratorNagra: DRMAssetIdGenerator {
@@ -37,7 +34,6 @@ class DRMAssetIdGeneratorNagra: DRMAssetIdGenerator {
         
         return try? JSONSerialization.data(withJSONObject: assetIdDict, options: [])
     }
-    
     
     private func parseSSPLoadingRequest(url: URL) -> (String, String, String) {
       if let jsonResults = jsonFromURL(url: url),

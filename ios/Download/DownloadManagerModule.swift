@@ -10,8 +10,7 @@ import React
 
 @objc(DownloadManagerModule)
 class DownloadManagerModule: RCTEventEmitter {
-    
-    public static var SELECTED_QUALITY: DownloadQualityOptions = .MEDIUM
+    static var SELECTED_QUALITY: DownloadQualityOptions = .MEDIUM
     
     @objc func prepare() {
         HLSDownloadManager.shared.notifyDownloadsChanged()
@@ -51,7 +50,7 @@ class DownloadManagerModule: RCTEventEmitter {
     
     @objc func renewDrmLicense(_ item: [String: Any]) {
         getModelFromDictElseNotifyError(item) { model, licenseData in
-//            HLSDownloadManager.shared.renew(download: model, licenseData: licenseData)
+            // HLSDownloadManager.shared.renew(download: model, licenseData: licenseData)
         }
     }
     
@@ -94,7 +93,7 @@ class DownloadManagerModule: RCTEventEmitter {
     
     // MARK: - Event emitter
     
-    public override class func requiresMainQueueSetup() -> Bool {
+    override class func requiresMainQueueSetup() -> Bool {
         false
     }
     
@@ -132,8 +131,8 @@ class DownloadManagerModule: RCTEventEmitter {
 
 enum DownloadManagerModuleEvent: String, CaseIterable {
     case onDownloadListChanged
+    case onDownloadProgress
     case onDownloadError
     case onRenewLicense
     case onError
-    case onDownloadProgress
 }
