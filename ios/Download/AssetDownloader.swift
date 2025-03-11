@@ -10,8 +10,8 @@ import AVFoundation
 import UIKit
 
 protocol AssetDownloaderDelegate {
-  func downloadStatusChanged(assetInfo: AssetInfo, status: AssetInfo.RAIAVAssetStatus)
-    func downloadProgess(assetInfo: AssetInfo, percentage: Double, loaded: Double, total: Double)
+    func downloadStateChanged(assetInfo: AssetInfo, state: DownloadState)
+    func downloadProgress(assetInfo: AssetInfo, percentage: Double, loaded: Double, total: Double)
     func downloadError(assetInfo: AssetInfo, error: Error)
     func downloadLocationAvailable(assetInfo: AssetInfo, location: URL)
     func downloadCkcAvailable(assetInfo: AssetInfo, ckc: Data)
@@ -28,7 +28,6 @@ class AssetDownloader: NSObject {
     var delegate: AssetDownloaderDelegate?
     
     private var drmManagers: [AVPlayerDRMManager] = []
-    
     
     //MARK: - PUBLIC
     
@@ -60,9 +59,7 @@ class AssetDownloader: NSObject {
     }
     
     func resume(assetInfo: AssetInfo) {
-        
         if let licenseData = assetInfo.licenseData {
-            
             let drmManager = AVPlayerDRMManager(asset: assetInfo.avUrlAsset, licenseData: licenseData)
             
             let drmLicenceBecomeReady: ((Data?) -> Void) = {[weak self] ckcData in
@@ -94,7 +91,6 @@ class AssetDownloader: NSObject {
     }
     
     func renew(assetInfo: AssetInfo, completion: ((Result<Data, Error>) -> Void)? = nil) {
-        
         let drmManager = AVPlayerDRMManager(asset: assetInfo.avUrlAsset, licenseData: assetInfo.licenseData)
         
         let drmLicenceBecomeReady: ((Data?) -> Void) = {[weak self] ckcData in
@@ -132,6 +128,7 @@ class AssetDownloader: NSObject {
             value = activeDownloadValue
             break
         }
+        
         if let task = task, let value = value, value.1 == .Downloading {
             activeDownloadsMap[task] = (value.0,.Paused)
             task.cancel()
@@ -146,11 +143,9 @@ class AssetDownloader: NSObject {
 //        }
 //    }
     
-    
     //MARK: - PRIVATE
     
     private func startCachingtask(assetInfo: AssetInfo) {
-        
         let avUrlAsset = assetInfo.avUrlAsset
         
         logger.debug("ASSET DOWNLOADER: Download")
@@ -163,13 +158,11 @@ class AssetDownloader: NSObject {
          corresponding with one of the lower bitrate variants in the asset.
          */
         
-        
         var mediaSelections: [AVMediaSelection] = []
         var options: [String: Any]?
         
         //checking if is resume of local file or new download
         if assetInfo.avUrlAsset.url.isFileURL == false {
-            
             var bitrate: Double = 0
 
             var rates: [Double] = []
@@ -179,8 +172,6 @@ class AssetDownloader: NSObject {
                         rates.append(peak)
                     }
                 }
-            } else {
-                // Fallback on earlier versions
             }
             
             let max = rates.max(by: {$1 > $0})
@@ -224,7 +215,6 @@ class AssetDownloader: NSObject {
         }
         
         //using cached bitrate if download has been resumed after pause
-        
         if let bitrate = assetInfo.bitrate, options == nil {
             options = [AVAssetDownloadTaskMinimumRequiredMediaBitrateKey: bitrate]
             assetInfo.bitrate = bitrate
@@ -243,24 +233,24 @@ class AssetDownloader: NSObject {
         task.resume()
         
         // Notify change state
-        self.delegate?.downloadStatusChanged(assetInfo: assetInfo, status: .Downloading)
+        self.delegate?.downloadStateChanged(assetInfo: assetInfo, state: .downloading)
     }
 }
 
-
 // MARK: - AVAssetDownloadDelegate
 extension AssetDownloader: AVAssetDownloadDelegate {
-    
     // Tells the delegate that the task finished transferring data
-    func urlSession(_ session: URLSession, task: URLSessionTask, didCompleteWithError error: Error?) {
-        
+    func urlSession(
+        _ session: URLSession,
+        task: URLSessionTask,
+        didCompleteWithError error: Error?
+    ) {
         /*
          This is the ideal place to begin downloading additional media selections
          once the asset itself has finished downloading.
          */
         guard let task = task as? AVAggregateAssetDownloadTask,
               let activeDownloadValue = activeDownloadsMap.removeValue(forKey: task) else { return }
-        
         
         if let error = error as NSError? {
             switch (error.domain, error.code) {
@@ -274,7 +264,7 @@ extension AssetDownloader: AVAssetDownloadDelegate {
                  */
                 
                 if activeDownloadValue.1 == .Paused {
-                    self.delegate?.downloadStatusChanged(assetInfo: activeDownloadValue.0, status: .Paused)
+                    self.delegate?.downloadStateChanged(assetInfo: activeDownloadValue.0, state: .paused)
                 }
                 
             case (NSURLErrorDomain, NSURLErrorUnknown):
@@ -291,13 +281,16 @@ extension AssetDownloader: AVAssetDownloadDelegate {
 #endif
             }
         } else {
-            
             logger.debug("ASSET DOWNLOADER: Downloading completed with success")
-            self.delegate?.downloadStatusChanged(assetInfo: activeDownloadValue.0, status: .Completed)
+            self.delegate?.downloadStateChanged(assetInfo: activeDownloadValue.0, state: .completed)
         }
     }
     
-    func urlSession(_ session: URLSession, aggregateAssetDownloadTask: AVAggregateAssetDownloadTask, willDownloadTo location: URL) {
+    func urlSession(
+        _ session: URLSession,
+        aggregateAssetDownloadTask: AVAggregateAssetDownloadTask,
+        willDownloadTo location: URL
+    ) {
         logger.debug("ASSET DOWNLOADER: location available")
         if let activeDownloadValue = activeDownloadsMap[aggregateAssetDownloadTask] {
             delegate?.downloadLocationAvailable(assetInfo: activeDownloadValue.0, location: location)
@@ -306,8 +299,14 @@ extension AssetDownloader: AVAssetDownloadDelegate {
         }
     }
     
-    func urlSession(_ session: URLSession, aggregateAssetDownloadTask: AVAggregateAssetDownloadTask, didLoad timeRange: CMTimeRange, totalTimeRangesLoaded loadedTimeRanges: [NSValue], timeRangeExpectedToLoad: CMTimeRange, for mediaSelection: AVMediaSelection) {
-        
+    func urlSession(
+        _ session: URLSession,
+        aggregateAssetDownloadTask: AVAggregateAssetDownloadTask,
+        didLoad timeRange: CMTimeRange,
+        totalTimeRangesLoaded loadedTimeRanges: [NSValue],
+        timeRangeExpectedToLoad: CMTimeRange,
+        for mediaSelection: AVMediaSelection
+    ) {
         // This delegate callback should be used to provide download progress for your AVAssetDownloadTask
         var percentComplete = 0.0
         var loadedTimeRangeSeconds = 0.0
@@ -323,9 +322,8 @@ extension AssetDownloader: AVAssetDownloadDelegate {
         
         // Notify change state
         if let val = activeDownloadsMap[aggregateAssetDownloadTask] {
-            delegate?.downloadProgess(assetInfo: val.0, percentage: percentComplete, loaded: loadedTimeRangeSeconds, total: timeRangeExpectedToLoadSeconds)
+            delegate?.downloadProgress(assetInfo: val.0, percentage: percentComplete, loaded: loadedTimeRangeSeconds, total: timeRangeExpectedToLoadSeconds)
         }
-        
     }
 }
 

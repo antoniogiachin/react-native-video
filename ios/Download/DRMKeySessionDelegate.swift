@@ -172,8 +172,6 @@ public class DRMKeySessionDelegate : NSObject, AVContentKeySessionDelegate {
                                     let keyResponse = AVContentKeyResponse(fairPlayStreamingKeyResponseData: ckcData)
                                     keyRequest.processContentKeyResponse(keyResponse)
                                 }
-                                
-
                             }
                         }
                     }else{

@@ -8,22 +8,26 @@
 import Foundation
 
 class RCTExternalSubtitlesCacheManager {
-    
     public static let shared = RCTExternalSubtitlesCacheManager()
     
     private static let SUBTITLES_PATH = "subtitles"
     
-    public func downloadSubtitles(videoId: String, subtitles: [RCTExternalSubtitleModel]?, completion: @escaping (_ subtitles: [RCTExternalSubtitleModel]?, _ err: Error?) -> Void) {
+    public func downloadSubtitles(
+        videoId: String,
+        subtitles: [DownloadSubtitlesModel]?,
+        completion: @escaping (_ subtitles: [DownloadSubtitlesModel]?, _ err: Error?) -> Void
+    ) {
         guard let subtitles else {
             completion(nil, nil)
             return
         }
-        var cachedSubtitles: [RCTExternalSubtitleModel] = []
+        var cachedSubtitles: [DownloadSubtitlesModel] = []
         var localError: Error?
         let group = DispatchGroup()
         subtitles.forEach { subtitle in
             group.enter()
-          if let url = URL(string: subtitle.url!), let subtitleId = subtitle.id {
+            if let url = URL(string: subtitle.webUrl) {
+                let subtitleId = subtitle.language
                 downloadData(url: url) { data, error in
                     if let error = error {
                         localError = error
@@ -36,11 +40,12 @@ class RCTExternalSubtitlesCacheManager {
                         group.leave()
                         return
                     }
-                    let cachedSubtitle = RCTExternalSubtitleModel()
-                    cachedSubtitle.id = subtitle.id
-                    cachedSubtitle.label = subtitle.label
-                    cachedSubtitle.url = diskUrl.url?.absoluteString
-                    cachedSubtitles.append(cachedSubtitle)
+                    let updatedSubtitle = DownloadSubtitlesModel(
+                        language: subtitle.language,
+                        webUrl: subtitle.webUrl,
+                        localUrl: diskUrl.url?.absoluteString
+                    )
+                    cachedSubtitles.append(updatedSubtitle)
                     group.leave()
                 }
             } else {

@@ -7,10 +7,10 @@
 
 import Foundation
 
-public class DownloadMetadataCacheManager {
+class DownloadMetadataCacheManager {
     
-    public static let shared = DownloadMetadataCacheManager()
-    public static let MEDIA_CACHE_KEY = "media_cache"
+    static let shared = DownloadMetadataCacheManager()
+    static let MEDIA_CACHE_KEY = "media_cache"
     
     private let OLD_MEDIA_KEY = "downloadingKey"
     private static let MEDIA_CACHE_KEY_DEFAULTS = Bundle.main.bundleIdentifier! + "_" + DownloadMetadataCacheManager.MEDIA_CACHE_KEY
@@ -61,7 +61,7 @@ public class DownloadMetadataCacheManager {
         return downloads?.reduce([], +)
     }
     
-    public func get() -> [NewDownloadModel] {
+    func get() -> [NewDownloadModel] {
         var downloads: [NewDownloadModel] = []
 //        if let oldDownloads = getOldDownloads() {
 //            downloads.append(contentsOf: oldDownloads)
@@ -72,16 +72,18 @@ public class DownloadMetadataCacheManager {
         return downloads
     }
     
-    public func save(_ downloads: [NewDownloadModel]) {
+    func save(_ downloads: [NewDownloadModel]) {
         UserDefaults.standard.setDownloads(downloads)
     }
     
-    public static func cacheDirectoryPath() -> URL {
+    static func cacheDirectoryPath() -> URL {
         let cachePath = NSSearchPathForDirectoriesInDomains(.documentDirectory, .userDomainMask, true)[0]
         return URL(fileURLWithPath: cachePath)
     }
     
-    public static func createDirectoryIfNotExists(withName name:String) -> (url: URL?, error: Error?)  {
+    static func createDirectoryIfNotExists(
+        withName name: String
+    ) -> (url: URL?, error: Error?) {
         let directoryUrl = self.cacheDirectoryPath().appendingPathComponent(name)
         if FileManager.default.fileExists(atPath: directoryUrl.path) {
             return (directoryUrl, nil)
@@ -93,5 +95,4 @@ public class DownloadMetadataCacheManager {
             return (nil, error)
         }
     }
-    
 }

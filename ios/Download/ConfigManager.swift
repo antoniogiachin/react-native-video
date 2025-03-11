@@ -14,7 +14,6 @@ public enum ConfigManagerEndpointType {
 }
     
 public class ConfigManager {
-
     public static let shared = ConfigManager()
     private init(){}
     

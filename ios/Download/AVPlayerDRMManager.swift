@@ -66,7 +66,6 @@ public class AVPlayerDRMManager: Hashable  {
     public func start(){
 #if targetEnvironment(simulator)
 #else
-        
         if #available(iOS 11.2, *) {
             
             var delegate: DRMKeySessionDelegate?
@@ -110,7 +109,6 @@ public class AVPlayerDRMManager: Hashable  {
             }
         }
 #endif
-        
     }
     
     private func clear() {

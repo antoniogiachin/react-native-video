@@ -7,44 +7,50 @@
 
 import Foundation
 
-public class NewDownloadModel: Codable {
-    public var identifier: String {
+class NewDownloadModel: Codable {
+    var identifier: String {
         (pathId + (programInfo?.programPathId ?? "") + ua).sha1()
     }
     
-    public var pathId: String
-    public var ua: String
-    public var url: String
-    public var subtitles: [DownloadSubtitlesModel]?
-    public var drm: LicenseServerModel?
-    public var videoInfo: VideoInfoModel?
-    public var programInfo: ProgramInfoModel?
-    public var expireDate: Date?
-    public var state: AssetInfo.RAIAVAssetStatus?
-    public var playerSource: String?
+    var pathId: String
+    var ua: String
+    var url: String
+    var subtitles: [DownloadSubtitlesModel]?
+    var drm: LicenseServerModel?
+    var videoInfo: VideoInfoModel
+    var programInfo: ProgramInfoModel?
+    var expireDate: Date?
+    var state: DownloadState?
+    var playerSource: String?
 }
 
 extension NewDownloadModel: ReactDictionaryConvertible, Equatable {
-    public static func == (lhs: NewDownloadModel, rhs: NewDownloadModel) -> Bool {
+    static func == (lhs: NewDownloadModel, rhs: NewDownloadModel) -> Bool {
         lhs.identifier == rhs.identifier
     }
 }
 
-public struct LicenseServerModel: Codable {
+struct LicenseServerModel: Codable {
     let type: DRMType?
     let licenseServer: String?
     let licenseToken: String?
 }
 
-public enum DRMType: String, Codable {
+enum DRMType: String, Codable {
     case WIDEVINE = "widevine"
     case PLAYREADY = "playready"
     case CLEARKEY = "clearkey"
     case FAIRPLAY = "fairplay"
 }
 
-public struct DownloadSubtitlesModel: Codable {
+struct DownloadSubtitlesModel: Codable {
     let language: String   // lingua dei sottotitoli
     let webUrl: String     // url dei sottotitoli
     let localUrl: String?  // url dei sottotitoli locali
+}
+
+enum DownloadState: String, Codable {
+    case downloading = "DOWNLOADING"
+    case paused = "PAUSED"
+    case completed = "COMPLETED"
 }
