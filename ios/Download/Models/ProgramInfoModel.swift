@@ -11,22 +11,22 @@ struct VideoInfoModel: Codable {
     let templateImg: String
     let title: String
     let description: String
-    let mediaInfo: [MediaItemDetail]?
+    var mediaInfo: [MediaItemDetail]?
     var bytesDownloaded: Int?
     var totalBytes: Int?
-    let id: String?
+    var id: String?
 }
 
 struct ProgramInfoModel: Codable {
     let templateImg: String
     let title: String
     let description: String
-    let mediaInfo: [MediaItemDetail]?
+    var mediaInfo: [MediaItemDetail]?
     var bytesDownloaded: Int?
     var totalBytes: Int?
-    let id: String?
+    var id: String?
     
-    let programPathId: String?
+    var programPathId: String?
 }
 
 struct MediaItemDetail: Codable {

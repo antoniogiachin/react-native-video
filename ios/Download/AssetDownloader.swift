@@ -5,25 +5,25 @@
 //  Created by Valerio CARMINE IENCO (KINETON) on 19/11/24.
 //
 
-import Foundation
-import AVFoundation
 import UIKit
+import AVFoundation
 
 protocol AssetDownloaderDelegate {
-    func downloadStateChanged(assetInfo: AssetInfo, state: DownloadState)
-    func downloadProgress(assetInfo: AssetInfo, percentage: Double, loaded: Double, total: Double)
-    func downloadError(assetInfo: AssetInfo, error: Error)
-    func downloadLocationAvailable(assetInfo: AssetInfo, location: URL)
-    func downloadCkcAvailable(assetInfo: AssetInfo, ckc: Data)
+    func downloadStateChanged(assetInfo: DownloadInfo, state: DownloadState)
+    func downloadProgress(assetInfo: DownloadInfo, percentage: Double, loaded: Double, total: Double)
+    func downloadError(assetInfo: DownloadInfo, error: Error)
+    func downloadLocationAvailable(assetInfo: DownloadInfo, location: URL)
+    func downloadCkcAvailable(assetInfo: DownloadInfo, ckc: Data)
 }
 
 class AssetDownloader: NSObject {
-    
     // The AVAssetDownloadURLSession to use for managing AVAssetDownloadTasks
-    private var assetDownloadURLSession: AVAssetDownloadURLSession!
+    private var session: AVAssetDownloadURLSession?
     
     // Internal map of AVAssetDownloadTask to its corresponding Asset
-    private var activeDownloadsMap = [AVAggregateAssetDownloadTask: (AssetInfo, AssetInfo.RAIAVAssetStatus)]()
+    private var downloading = [
+        AVAggregateAssetDownloadTask: (DownloadInfo, DownloadInfo.RAIAVAssetStatus)
+    ]()
     
     var delegate: AssetDownloaderDelegate?
     
@@ -35,20 +35,23 @@ class AssetDownloader: NSObject {
         super.init()
         
         // Create the configuration for the AVAssetDownloadURLSession
-        let backgroundConfiguration = URLSessionConfiguration.background(withIdentifier: "\(Bundle.main.bundleIdentifier!).AssetDownloader")
+        let bundle = Bundle.main.bundleIdentifier ?? ""
+        let configuration = URLSessionConfiguration.background(
+            withIdentifier: "\(bundle).AssetDownloader"
+        )
         
         // Avoid OS scheduling the background request transfers due to battery or performance
-        backgroundConfiguration.isDiscretionary = false
+        configuration.isDiscretionary = false
         
         // Makes the TCP sockets open even when the app is locked or suspended
-        backgroundConfiguration.shouldUseExtendedBackgroundIdleMode = true
+        configuration.shouldUseExtendedBackgroundIdleMode = true
         
         let queue = OperationQueue()
         queue.qualityOfService = .userInitiated
         
         // Create the AVAssetDownloadURLSession using the configuration
-        assetDownloadURLSession = AVAssetDownloadURLSession(
-            configuration: backgroundConfiguration,
+        session = AVAssetDownloadURLSession(
+            configuration: configuration,
             assetDownloadDelegate: self,
             delegateQueue: queue
         )
@@ -58,18 +61,18 @@ class AssetDownloader: NSObject {
         self.delegate = delegate
     }
     
-    func resume(assetInfo: AssetInfo) {
+    func resume(assetInfo: DownloadInfo) {
         if let licenseData = assetInfo.licenseData {
-            let drmManager = AVPlayerDRMManager(asset: assetInfo.avUrlAsset, licenseData: licenseData)
+            let drmManager = AVPlayerDRMManager(asset: assetInfo.asset, licenseData: licenseData)
             
             let drmLicenceBecomeReady: ((Data?) -> Void) = {[weak self] ckcData in
-                guard let self = self else { return }
+                guard let self else { return }
                 
                 self.drmManagers.removeAll{ $0 == drmManager}
                 
-                if let ckcData = ckcData {
+                if let ckcData {
                     self.delegate?.downloadCkcAvailable(assetInfo: assetInfo, ckc: ckcData)
-                    self.startCachingtask(assetInfo: assetInfo)
+                    self.start(download: assetInfo)
                 } else {
                     self.delegate?.downloadError(assetInfo: assetInfo, error: AssetDownloaderError.ckcError)
                 }
@@ -86,12 +89,12 @@ class AssetDownloader: NSObject {
             
             drmManagers.append(drmManager)
         } else {
-            self.startCachingtask(assetInfo: assetInfo)
+            self.start(download: assetInfo)
         }
     }
     
-    func renew(assetInfo: AssetInfo, completion: ((Result<Data, Error>) -> Void)? = nil) {
-        let drmManager = AVPlayerDRMManager(asset: assetInfo.avUrlAsset, licenseData: assetInfo.licenseData)
+    func renew(assetInfo: DownloadInfo, completion: ((Result<Data, Error>) -> Void)? = nil) {
+        let drmManager = AVPlayerDRMManager(asset: assetInfo.asset, licenseData: assetInfo.licenseData)
         
         let drmLicenceBecomeReady: ((Data?) -> Void) = {[weak self] ckcData in
             guard let self = self else { return }
@@ -118,21 +121,21 @@ class AssetDownloader: NSObject {
         drmManagers.append(drmManager)
     }
     
-    // Canceles the download task
+    // Cancels the download task
     func cancelDownloadOfAsset(identifier: String) {
         var task: AVAggregateAssetDownloadTask?
-        var value: (AssetInfo, AssetInfo.RAIAVAssetStatus)?
+        var value: (DownloadInfo, DownloadInfo.RAIAVAssetStatus)?
         
-        for (taskKey, activeDownloadValue) in activeDownloadsMap where identifier == activeDownloadValue.0.identifier {
+        for (taskKey, activeDownloadValue) in downloading where identifier == activeDownloadValue.0.identifier {
             task = taskKey
             value = activeDownloadValue
             break
         }
         
-        if let task = task, let value = value, value.1 == .Downloading {
-            activeDownloadsMap[task] = (value.0,.Paused)
+        if let task, let value, value.1 == .Downloading {
+            downloading[task] = (value.0,.Paused)
             task.cancel()
-            logger.debug("ASSET DOWNLOADER: Cancelling download of \(String(describing: task.taskDescription))")
+            debugPrint("ASSET DOWNLOADER: Cancelling download of \(String(describing: task.taskDescription))")
         }
     }
     
@@ -145,10 +148,10 @@ class AssetDownloader: NSObject {
     
     //MARK: - PRIVATE
     
-    private func startCachingtask(assetInfo: AssetInfo) {
-        let avUrlAsset = assetInfo.avUrlAsset
+    private func start(download info: DownloadInfo) {
+        let asset = info.asset
         
-        logger.debug("ASSET DOWNLOADER: Download")
+        debugPrint("ASSET DOWNLOADER: Download")
         
         /*
          Creates and initializes an AVAggregateAssetDownloadTask to download multiple AVMediaSelections
@@ -162,12 +165,12 @@ class AssetDownloader: NSObject {
         var options: [String: Any]?
         
         //checking if is resume of local file or new download
-        if assetInfo.avUrlAsset.url.isFileURL == false {
+        if asset.url.isFileURL == false {
             var bitrate: Double = 0
 
             var rates: [Double] = []
             if #available(iOS 15.0, *) {
-                avUrlAsset.variants.forEach { variant in
+                asset.variants.forEach { variant in
                     if let peak = variant.peakBitRate {
                         rates.append(peak)
                     }
@@ -189,51 +192,57 @@ class AssetDownloader: NSObject {
                 }
                 
                 options = [AVAssetDownloadTaskMinimumRequiredMediaBitrateKey: bitrate]
-                assetInfo.bitrate = bitrate
+                info.bitrate = bitrate
             }
             
-            if let audibleGroup = avUrlAsset.mediaSelectionGroup(forMediaCharacteristic: .audible) {
+            if let audibleGroup = asset.mediaSelectionGroup(forMediaCharacteristic: .audible) {
                 audibleGroup.options.forEach({ option in
-                    if let mutableMediaSelection = avUrlAsset.preferredMediaSelection.mutableCopy() as? AVMutableMediaSelection {
+                    if let mutableMediaSelection = asset.preferredMediaSelection.mutableCopy() as? AVMutableMediaSelection {
                         mutableMediaSelection.select(option, in: audibleGroup)
                         mediaSelections.append(mutableMediaSelection)
                     }
                 })
             }
             
-            if let legibleGroup = avUrlAsset.mediaSelectionGroup(forMediaCharacteristic: .legible) {
+            if let legibleGroup = asset.mediaSelectionGroup(forMediaCharacteristic: .legible) {
                 legibleGroup.options.forEach({ option in
-                    if let mutableMediaSelection = avUrlAsset.preferredMediaSelection.mutableCopy() as? AVMutableMediaSelection {
+                    if let mutableMediaSelection = asset.preferredMediaSelection.mutableCopy() as? AVMutableMediaSelection {
                         mutableMediaSelection.select(option, in: legibleGroup)
                         mediaSelections.append(mutableMediaSelection)
                     }
                 })
             }
             
-            logger.debug("cachingTask mediaSelections \(mediaSelections.count)")
-            logger.debug("cachingTask bitrate \(bitrate)")
+            debugPrint("cachingTask mediaSelections \(mediaSelections.count)")
+            debugPrint("cachingTask bitrate \(bitrate)")
         }
         
         //using cached bitrate if download has been resumed after pause
-        if let bitrate = assetInfo.bitrate, options == nil {
+        if let bitrate = info.bitrate, options == nil {
             options = [AVAssetDownloadTaskMinimumRequiredMediaBitrateKey: bitrate]
-            assetInfo.bitrate = bitrate
+            info.bitrate = bitrate
         }
         
-        guard let task = self.assetDownloadURLSession.aggregateAssetDownloadTask(with: avUrlAsset, mediaSelections: mediaSelections, assetTitle: assetInfo.identifier, assetArtworkData: nil, options: options)
+        // Creating the download task
+        guard let task = session?.aggregateAssetDownloadTask(
+            with: asset,
+            mediaSelections: mediaSelections,
+            assetTitle: info.identifier,
+            assetArtworkData: nil,
+            options: options
+        )
         else {
-            logger.debug("ASSET DOWNLOADER: Failed to create AVAggregateAssetDownloadTask")
+            debugPrint("ASSET DOWNLOADER: Failed to create AVAggregateAssetDownloadTask")
             return
         }
         
-        // Map active task to asset
-        self.activeDownloadsMap[task] = (assetInfo,.Downloading)
+        downloading[task] = (info, .Downloading)
         
-        task.taskDescription = assetInfo.identifier
+        task.taskDescription = info.identifier
         task.resume()
         
         // Notify change state
-        self.delegate?.downloadStateChanged(assetInfo: assetInfo, state: .downloading)
+        self.delegate?.downloadStateChanged(assetInfo: info, state: .downloading)
     }
 }
 
@@ -250,13 +259,13 @@ extension AssetDownloader: AVAssetDownloadDelegate {
          once the asset itself has finished downloading.
          */
         guard let task = task as? AVAggregateAssetDownloadTask,
-              let activeDownloadValue = activeDownloadsMap.removeValue(forKey: task) else { return }
+              let activeDownloadValue = downloading.removeValue(forKey: task) else { return }
         
         if let error = error as NSError? {
             switch (error.domain, error.code) {
             case (NSURLErrorDomain, NSURLErrorCancelled):
                 
-                logger.debug("ASSET DOWNLOADER: Downloading was cancelled")
+                debugPrint("ASSET DOWNLOADER: Downloading was cancelled")
                 
                 /*
                  This task was canceled, you should perform cleanup using the
@@ -268,11 +277,11 @@ extension AssetDownloader: AVAssetDownloadDelegate {
                 }
                 
             case (NSURLErrorDomain, NSURLErrorUnknown):
-                logger.debug("ASSET DOWNLOADER: An unexpected error occured \(error)")
+                debugPrint("ASSET DOWNLOADER: An unexpected error occured \(error)")
                 self.delegate?.downloadError(assetInfo: activeDownloadValue.0, error: error)
                 
             default:
-                logger.debug("ASSET DOWNLOADER: An unexpected error occured \(error)")
+                debugPrint("ASSET DOWNLOADER: An unexpected error occured \(error)")
                 
 #if targetEnvironment(simulator)
                 self.delegate?.downloadError(assetInfo: activeDownloadValue.0, error: AssetDownloaderError.simulatorNotSupported)
@@ -281,7 +290,7 @@ extension AssetDownloader: AVAssetDownloadDelegate {
 #endif
             }
         } else {
-            logger.debug("ASSET DOWNLOADER: Downloading completed with success")
+            debugPrint("ASSET DOWNLOADER: Downloading completed with success")
             self.delegate?.downloadStateChanged(assetInfo: activeDownloadValue.0, state: .completed)
         }
     }
@@ -291,11 +300,11 @@ extension AssetDownloader: AVAssetDownloadDelegate {
         aggregateAssetDownloadTask: AVAggregateAssetDownloadTask,
         willDownloadTo location: URL
     ) {
-        logger.debug("ASSET DOWNLOADER: location available")
-        if let activeDownloadValue = activeDownloadsMap[aggregateAssetDownloadTask] {
+        debugPrint("ASSET DOWNLOADER: location available")
+        if let activeDownloadValue = downloading[aggregateAssetDownloadTask] {
             delegate?.downloadLocationAvailable(assetInfo: activeDownloadValue.0, location: location)
         } else {
-            logger.debug("ASSET DOWNLOADER: asset not present in activeDownloadsMap")
+            debugPrint("ASSET DOWNLOADER: asset not present in activeDownloadsMap")
         }
     }
     
@@ -318,10 +327,10 @@ extension AssetDownloader: AVAssetDownloadDelegate {
             percentComplete += loadedTimeRangeSeconds/timeRangeExpectedToLoadSeconds
         }
         
-      logger.debug("ASSET DOWNLOADER caching percent \(percentComplete) of \(String(describing: aggregateAssetDownloadTask.taskDescription))")
+        debugPrint("ASSET DOWNLOADER caching percent \(percentComplete) of \(String(describing: aggregateAssetDownloadTask.taskDescription))")
         
         // Notify change state
-        if let val = activeDownloadsMap[aggregateAssetDownloadTask] {
+        if let val = downloading[aggregateAssetDownloadTask] {
             delegate?.downloadProgress(assetInfo: val.0, percentage: percentComplete, loaded: loadedTimeRangeSeconds, total: timeRangeExpectedToLoadSeconds)
         }
     }
