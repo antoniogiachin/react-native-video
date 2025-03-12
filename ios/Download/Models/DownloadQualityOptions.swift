@@ -8,7 +8,7 @@
 import Foundation
 
 public enum DownloadQualityOptions: String {
-  case LOW = "Low"
-  case MEDIUM = "Medium"
-  case HIGH = "High"
+    case LOW = "Low"
+    case MEDIUM = "Medium"
+    case HIGH = "High"
 }

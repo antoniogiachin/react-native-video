@@ -1,5 +1,5 @@
 //
-//  RCTDictionaryEncodable.swift
+//  ReactDictionaryConvertible.swift
 //  react-native-video
 //
 //  Created by Davide Balistreri on 07/03/25.
@@ -8,7 +8,7 @@
 import Foundation
 
 /// Helper protocol to convert a model into a dictionary and vice versa
-public protocol ReactDictionaryConvertible: Codable {
+protocol ReactDictionaryConvertible: Codable {
     /// Create a model from a dictionary (from React Native)
     static func from(_ dictionary: [String: Any]) -> Self?
     
@@ -16,7 +16,7 @@ public protocol ReactDictionaryConvertible: Codable {
     func toDictionary() -> [String: Any]?
 }
 
-public extension ReactDictionaryConvertible {
+extension ReactDictionaryConvertible {
     static func from(_ dictionary: [String: Any]) -> Self? {
         do {
             let data = try JSONSerialization.data(
@@ -26,7 +26,8 @@ public extension ReactDictionaryConvertible {
             let decoder = JSONDecoder()
             let object = try decoder.decode(Self.self, from: data)
             return object
-        } catch {
+        } catch let error {
+            debugPrint("Error while decoding \(Self.self): \(error)")
             return nil
         }
     }

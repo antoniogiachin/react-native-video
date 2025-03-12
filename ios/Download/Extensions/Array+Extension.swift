@@ -8,6 +8,10 @@
 import Foundation
 
 extension Array {
+    func remove(where predicate: (Element) -> Bool) -> [Element] {
+        filter { !predicate($0) }
+    }
+    
     public mutating func modifyForEach(_ body: (_ index: Index, _ element: inout Element) -> ()) {
         for index in indices {
             modifyElement(atIndex: index) { body(index, &$0) }
