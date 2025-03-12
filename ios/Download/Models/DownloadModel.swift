@@ -130,6 +130,7 @@ struct DownloadSubtitlesModel: Codable {
 }
 
 enum DownloadState: String, Codable {
+    case queued = "QUEUED"
     case downloading = "DOWNLOADING"
     case paused = "PAUSED"
     case completed = "COMPLETED"

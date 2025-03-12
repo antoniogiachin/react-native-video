@@ -8,29 +8,28 @@
 import Foundation
 import AVFoundation
 
-public class DownloadInfo {
-    public let asset: AVURLAsset
-    public let licenseData: MediapolisModelLicenceServerMapDRMLicenceUrl?
-    public var identifier: String
-    public var bitrate: Double?
+class DownloadInfo: NSObject {
+    let asset: AVURLAsset
+    let licenseData: MediapolisModelLicenceServerMapDRMLicenceUrl?
+    var identifier: String
+    var bitrate: Double?
     
-    public init(identifier: String, avUrlAsset: AVURLAsset, licenseData: MediapolisModelLicenceServerMapDRMLicenceUrl? = nil, bitrate: Double? = nil) {
-        self.asset = avUrlAsset
+    init(
+        identifier: String,
+        asset: AVURLAsset,
+        licenseData: MediapolisModelLicenceServerMapDRMLicenceUrl? = nil,
+        bitrate: Double? = nil
+    ) {
+        self.asset = asset
         self.identifier = identifier
         self.licenseData = licenseData
         self.bitrate = bitrate
     }
     
-    public static func ==(lhs: DownloadInfo, rhs: DownloadInfo) -> Bool {
+    static func ==(lhs: DownloadInfo, rhs: DownloadInfo) -> Bool {
         return lhs.identifier == rhs.identifier
     }
-}
-
-public extension DownloadInfo {
-    enum RAIAVAssetStatus: String, Codable {
-        case Queue = "Queue"
-        case Downloading = "Downloading"
-        case Paused = "Paused"
-        case Completed = "Completed"
-    }
+    
+    var task: AVAggregateAssetDownloadTask?
+    var state: DownloadState?
 }

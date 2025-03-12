@@ -12,14 +12,14 @@ class DownloadManager {
     static let shared = DownloadManager()
     
     /// List of all downloaded and downloading items.
-    var downloads: [DownloadModel] = [] {
+    private(set) var downloads: [DownloadModel] = [] {
         didSet {
             saveDownloads(downloads)
         }
     }
     
     /// List of currently downloading items. It will be cleared after all downloads are completed.
-    var downloading: [DownloadModel] = []
+    private var downloading: [DownloadModel] = []
     
     private let downloader = AssetDownloader()
     
@@ -67,6 +67,8 @@ class DownloadManager {
                 }
                 
                 downloads.append(download)
+                downloading.append(download)
+                notifyDownloadsProgress()
                 resume(download, licenseData: licenseData)
             }
         } else {
@@ -75,61 +77,63 @@ class DownloadManager {
             downloader.resume(
                 assetInfo: DownloadInfo(
                     identifier: download.identifier,
-                    avUrlAsset: asset,
+                    asset: asset,
                     licenseData: nil,
-                    bitrate: nil  // download.bitrate
+                    bitrate: download._bitrate
                 )
             )
         }
     }
-  
-  func renew(_ download: DownloadModel, licenseData: RCTMediapolisModelLicenceServerMapDRMLicenceUrl?) {
-      if let location = download.location {
-          let avUrlAsset = AVURLAsset(url: location)
-        self.downloader.renew(assetInfo: DownloadInfo(identifier: download.identifier, avUrlAsset: avUrlAsset, licenseData: licenseData)) { [weak self] result in
-              guard let self else { return }
-              switch result {
-              case .failure(let error):
-                  self.notifyRenewLicense(download: download, result: false)
-                  debugPrint("license renewed failed \(error)")
-              case .success(_):
-                  self.notifyRenewLicense(download: download, result: true)
-                  debugPrint("license renewed")
-              }
-          }
-      }
-  }
-  
-  func pause(_ download: DownloadModel) {
-      if let identifier = get(download)?.identifier {
-          downloader.cancelDownloadOfAsset(identifier: identifier)
-      }
-  }
-  
-    func get(_ download: DownloadModel) -> DownloadModel? {
-        return downloads.first(where: { model in
-            model.identifier == download.identifier
-        })
+    
+    func renew(_ download: DownloadModel, licenseData: RCTMediapolisModelLicenceServerMapDRMLicenceUrl?) {
+        if let location = download.location {
+            let avUrlAsset = AVURLAsset(url: location)
+            downloader.renew(
+                assetInfo: DownloadInfo(
+                    identifier: download.identifier,
+                    asset: avUrlAsset,
+                    licenseData: licenseData
+                )
+            ) { [weak self] result in
+                guard let self else { return }
+                switch result {
+                case .failure(let error):
+                    notifyRenewLicense(download: download, result: false)
+                    debugPrint("license renewed failed \(error)")
+                case .success(_):
+                    notifyRenewLicense(download: download, result: true)
+                    debugPrint("license renewed")
+                }
+            }
+        }
     }
     
-    private func getDownload(from: DownloadInfo) -> DownloadModel? {
-        return downloads.first(where: { $0.identifier == from.identifier })
+    func pause(_ download: DownloadModel) {
+        if let download = get(download) {
+            downloader.cancelDownloadOfAsset(identifier: download.identifier)
+        }
+    }
+    
+    private func get(_ download: DownloadModel) -> DownloadModel? {
+        downloads.first(where: { $0.identifier == download.identifier })
+    }
+    
+    private func get(from: DownloadInfo) -> DownloadModel? {
+        downloads.first(where: { $0.identifier == from.identifier })
     }
     
     func delete(_ download: DownloadModel) {
-        
       if let download = get(download) {
-          
           downloader.cancelDownloadOfAsset(identifier: download.identifier)
           
-//          if let url = download.location {
-//              do {
-//                  //RIMOZIONE BOOKMARK HLS
-//                  try FileManager.default.removeItem(at: url)
-//              } catch {
-//                  debugPrint(error.localizedDescription)
-//              }
-//          }
+          if let url = download.location {
+              do {
+                  //RIMOZIONE BOOKMARK HLS
+                  try FileManager.default.removeItem(at: url)
+              } catch {
+                  debugPrint(error.localizedDescription)
+              }
+          }
           
           let supportFiles = "\(DownloadManager.MEDIA_CACHE_KEY)/\(download.identifier)"
           
@@ -157,7 +161,7 @@ class DownloadManager {
             )
         )
     }
-  
+    
     private func updateDownloads(
         assetInfo: DownloadInfo,
         state: DownloadState? = nil,
@@ -193,7 +197,7 @@ class DownloadManager {
     }
   
     func notifyDownloadsProgress() {
-        let body = downloads.map { $0.toDictionary() }
+        let body = downloading.map { $0.toDictionary() }
         DownloadManagerModule.sendEvent(
             .onDownloadProgress,
             body: body
@@ -379,7 +383,7 @@ extension DownloadManager: AssetDownloaderDelegate {
     }
     
     func downloadError(assetInfo: DownloadInfo, error: Error) {
-        if let download = getDownload(from: assetInfo) {
+        if let download = get(from: assetInfo) {
             notifyError(error, for: download)
             delete(download)
         }

@@ -28,7 +28,7 @@ class OldDownloadModel: NSObject, NSCoding, NSSecureCoding {
     
     public var ckcData: Data?
     
-    public var assetStatus: DownloadInfo.RAIAVAssetStatus?
+    public var assetStatus: DownloadState?
     
     public var bookmarkLocation: Data?
     
@@ -59,7 +59,7 @@ class OldDownloadModel: NSObject, NSCoding, NSSecureCoding {
              return nil if bookmark location is nil and download is completed,
              it means that file is deleted from iphone settings
              */
-            if assetStatus == .Completed {
+            if assetStatus == .completed {
                 return nil
             }
             /*
@@ -92,13 +92,13 @@ class OldDownloadModel: NSObject, NSCoding, NSSecureCoding {
         
         switch status {
         case 2:
-            assetStatus = DownloadInfo.RAIAVAssetStatus.Downloading
+            assetStatus = .downloading
         case 3:
-            assetStatus = DownloadInfo.RAIAVAssetStatus.Paused
+            assetStatus = .paused
         case 4:
-            assetStatus = DownloadInfo.RAIAVAssetStatus.Completed
+            assetStatus = .completed
         default:
-            assetStatus = DownloadInfo.RAIAVAssetStatus.Queue
+            assetStatus = .queued
         }
         
         // init metadata
