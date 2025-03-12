@@ -13,44 +13,44 @@ class DownloadManagerModule: RCTEventEmitter {
     static var SELECTED_QUALITY: DownloadQualityOptions = .MEDIUM
     
     @objc func prepare() {
-        HLSDownloadManager.shared.notifyDownloadsChanged()
+        DownloadManager.shared.notifyDownloadsChanged()
     }
     
     @objc func start(_ item: [String: Any]) {
         getModelFromDictElseNotifyError(item) { model, licenseData in
-            HLSDownloadManager.shared.resume(model, licenseData: licenseData)
+            DownloadManager.shared.resume(model, licenseData: licenseData)
         }
     }
     
     @objc func resume(_ item: [String: Any]) {
         getModelFromDictElseNotifyError(item) { model, _ in
-            HLSDownloadManager.shared.resume(model)
+            DownloadManager.shared.resume(model)
         }
     }
     
     @objc func pause(_ item: [String: Any]) {
         getModelFromDictElseNotifyError(item) { model, _ in
-            HLSDownloadManager.shared.pause(model)
+            DownloadManager.shared.pause(model)
         }
     }
     
     @objc func delete(_ item: [String: Any]) {
-        if let model = NewDownloadModel.from(item) {
-            HLSDownloadManager.shared.delete(model)
+        if let model = DownloadModel.from(item) {
+            DownloadManager.shared.delete(model)
         }
     }
     
     @objc func batchDelete(_ items: [[String: Any]]) {
         for item in items {
-            if let model = NewDownloadModel.from(item) {
-                HLSDownloadManager.shared.delete(model)
+            if let model = DownloadModel.from(item) {
+                DownloadManager.shared.delete(model)
             }
         }
     }
     
     @objc func renewDrmLicense(_ item: [String: Any]) {
         getModelFromDictElseNotifyError(item) { model, licenseData in
-            // HLSDownloadManager.shared.renew(download: model, licenseData: licenseData)
+            DownloadManager.shared.renew(model, licenseData: licenseData)
         }
     }
     
@@ -60,9 +60,9 @@ class DownloadManagerModule: RCTEventEmitter {
     
     private func getModelFromDictElseNotifyError(
         _ item: [String: Any],
-        callback: (NewDownloadModel, RCTMediapolisModelLicenceServerMapDRMLicenceUrl?) -> Void
+        callback: (DownloadModel, RCTMediapolisModelLicenceServerMapDRMLicenceUrl?) -> Void
     ) {
-        guard let download = NewDownloadModel.from(item) else {
+        guard let download = DownloadModel.from(item) else {
             DownloadManagerModule.sendEvent(
                 .onDownloadError,
                 body: DownloadError(
@@ -87,7 +87,7 @@ class DownloadManagerModule: RCTEventEmitter {
         resolver: @escaping RCTPromiseResolveBlock,
         rejecter: @escaping RCTPromiseRejectBlock
     ) {
-        let downloads = HLSDownloadManager.shared.downloads
+        let downloads = DownloadManager.shared.downloads
         resolver(downloads.map { $0.toDictionary() })
     }
     

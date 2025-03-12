@@ -8,14 +8,13 @@
 import Foundation
 import AVFoundation
 
-public class OldDownloadModel: NSObject, NSCoding, DownloadMetadataProtocol, NSSecureCoding {
+class OldDownloadModel: NSObject, NSCoding, NSSecureCoding {
     
     public static var supportsSecureCoding: Bool {
         return true
     }
     
-    
-    public var externalSubtitles: [RCTExternalSubtitleModel]?
+    public var externalSubtitles: [ExternalSubtitleModel]?
     
     public var ua: String
     
@@ -29,9 +28,7 @@ public class OldDownloadModel: NSObject, NSCoding, DownloadMetadataProtocol, NSS
     
     public var ckcData: Data?
     
-    public var assetStatus: AssetInfo.RAIAVAssetStatus?
-    
-    public var progress: RCTDownloadProgress?
+    public var assetStatus: DownloadInfo.RAIAVAssetStatus?
     
     public var bookmarkLocation: Data?
     
@@ -54,7 +51,7 @@ public class OldDownloadModel: NSObject, NSCoding, DownloadMetadataProtocol, NSS
                     }
                     return url
                 } catch {
-                    logger.error("failed to create URL from bookmark with error: \(error)")
+                    debugPrint("failed to create URL from bookmark with error: \(error)")
                     return nil
                 }
             }
@@ -77,7 +74,7 @@ public class OldDownloadModel: NSObject, NSCoding, DownloadMetadataProtocol, NSS
     
     public var bitrate: Double?
     
-    required public init?(coder aDecoder: NSCoder) {
+    required init?(coder aDecoder: NSCoder) {
         
         self.ua = ""
         self.pathId = ""
@@ -95,13 +92,13 @@ public class OldDownloadModel: NSObject, NSCoding, DownloadMetadataProtocol, NSS
         
         switch status {
         case 2:
-            assetStatus = AssetInfo.RAIAVAssetStatus.Downloading
+            assetStatus = DownloadInfo.RAIAVAssetStatus.Downloading
         case 3:
-            assetStatus = AssetInfo.RAIAVAssetStatus.Paused
+            assetStatus = DownloadInfo.RAIAVAssetStatus.Paused
         case 4:
-            assetStatus = AssetInfo.RAIAVAssetStatus.Completed
+            assetStatus = DownloadInfo.RAIAVAssetStatus.Completed
         default:
-            assetStatus = AssetInfo.RAIAVAssetStatus.Queue
+            assetStatus = DownloadInfo.RAIAVAssetStatus.Queue
         }
         
         // init metadata
@@ -110,12 +107,15 @@ public class OldDownloadModel: NSObject, NSCoding, DownloadMetadataProtocol, NSS
         if let location = location, let json = location.lastPathComponent.split(separator: "_").first?.removingPercentEncoding {
             self.pathId = String(json)
         }
-        
     }
     
-    
-    public func encode(with coder: NSCoder) {
+    func encode(with coder: NSCoder) {
         
     }
-    
+}
+
+struct ExternalSubtitleModel: Codable, ReactDictionaryConvertible {
+    var id: String?
+    var label: String?
+    var url: String?
 }

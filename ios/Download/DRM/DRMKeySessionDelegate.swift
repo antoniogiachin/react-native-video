@@ -52,7 +52,7 @@ public class DRMKeySessionDelegate : NSObject, AVContentKeySessionDelegate {
     }
     
     public func contentKeySession(_ session: AVContentKeySession, contentKeyRequest keyRequest: AVContentKeyRequest, didFailWithError err: Error) {
-        logger.error("contentKeyRequest failed: \(err)")
+        debugPrint("contentKeyRequest failed: \(err)")
         
         DispatchQueue.main.async { [weak self] in
             self?.delegate?.drmLicenceFailed(error: err)
@@ -61,7 +61,7 @@ public class DRMKeySessionDelegate : NSObject, AVContentKeySessionDelegate {
     }
     
     public func contentKeySession(_ session: AVContentKeySession, contentKeyRequestDidSucceed keyRequest: AVContentKeyRequest) {
-        logger.debug("contentKeyRequest successfully")
+        debugPrint("contentKeyRequest successfully")
         
         DispatchQueue.main.async { [weak self] in
             self?.delegate?.drmLicenceBecomeReady()
@@ -100,7 +100,7 @@ public class DRMKeySessionDelegate : NSObject, AVContentKeySessionDelegate {
 
     #if !os(tvOS)
     public func contentKeySession(_ session: AVContentKeySession, didUpdatePersistableContentKey persistableContentKey: Data, forContentKeyIdentifier keyIdentifier: Any) {
-        logger.debug("contentKeyRequest didUpdatePersistableContentKey")
+        debugPrint("contentKeyRequest didUpdatePersistableContentKey")
         
         self.ckcData = persistableContentKey
     
@@ -118,7 +118,7 @@ public class DRMKeySessionDelegate : NSObject, AVContentKeySessionDelegate {
     private func getContentkey(keyRequest: AVContentKeyRequest) {
         currentRetry = currentRetry + 1
         
-        logger.debug("contentKeyRequest begin retry: \(currentRetry)")
+        debugPrint("contentKeyRequest begin retry: \(currentRetry)")
         
         if let ckcData = ckcData, let keyRequest = keyRequest as? AVPersistableContentKeyRequest {
             let keyResponse = AVContentKeyResponse(fairPlayStreamingKeyResponseData: ckcData)
@@ -127,7 +127,7 @@ public class DRMKeySessionDelegate : NSObject, AVContentKeySessionDelegate {
         }
         
         guard let licenseData = self.licenseData else {
-            logger.error("fairplay license no found")
+            debugPrint("fairplay license no found")
             keyRequest.processContentKeyResponseError(DRMKeySessionDelegateError.noMediapolisLicenseData)
             return
         }
@@ -135,28 +135,28 @@ public class DRMKeySessionDelegate : NSObject, AVContentKeySessionDelegate {
         guard let contentKeyIdentifierString = keyRequest.identifier as? String, let assetIDData = DRMAssetIdGenerator.getInstanceBy(drmOperator: licenseData.drmOperator).generate(contentKeyIdentifier: contentKeyIdentifierString)
         else {
             let errorMessage = "failed to retrieve the assetID from the keyRequest!"
-            logger.error(errorMessage)
+            debugPrint(errorMessage)
             keyRequest.processContentKeyResponseError(DRMKeySessionDelegateError.noContentId)
             return
         }
         
         let keyRequestCompletionHandler = { (spcData: Data?, error: Error?) in
             
-            logger.debug("begin downloading license with url '\(licenseData.fullLicenseUrl ?? "nil")'")
+            debugPrint("begin downloading license with url '\(licenseData.fullLicenseUrl ?? "nil")'")
             
             if let licenseUrl = licenseData.fullLicenseUrl {
                 if let spcData = spcData {
                     
                     if let downloader = AVPlayerDRMManagerLicenseDownloader.getInstanceBy(drmOperator: licenseData.drmOperator) {
-                        logger.debug("downloading license for '\(licenseData.drmOperator)'")
+                        debugPrint("downloading license for '\(licenseData.drmOperator)'")
                         downloader.download(licenseUrl: licenseUrl, spcData: spcData) { ckcData, error in
                             
                             if let error = error {
                                 let errorMessage = "download licence failed for '\(licenseData.drmOperator)': \(error)"
-                                logger.error(errorMessage)
+                                debugPrint(errorMessage)
                                 keyRequest.processContentKeyResponseError(DRMKeySessionDelegateError.ckcFetch)
                             }else if let ckcData = ckcData {
-                                logger.debug("download licence successfully for '\(licenseData.drmOperator)'")
+                                debugPrint("download licence successfully for '\(licenseData.drmOperator)'")
                                 
                                 if let keyRequest = keyRequest as? AVPersistableContentKeyRequest {
                                     do {
@@ -165,7 +165,7 @@ public class DRMKeySessionDelegate : NSObject, AVContentKeySessionDelegate {
                                         let keyResponse = AVContentKeyResponse(fairPlayStreamingKeyResponseData: persistentKeyData)
                                         keyRequest.processContentKeyResponse(keyResponse)
                                     } catch {
-                                        logger.error("Unable to create persistable content key \(error).")
+                                        debugPrint("Unable to create persistable content key \(error).")
                                         keyRequest.processContentKeyResponseError(error)
                                     }
                                 } else {
@@ -175,29 +175,29 @@ public class DRMKeySessionDelegate : NSObject, AVContentKeySessionDelegate {
                             }
                         }
                     }else{
-                        logger.warning("no downloader impl found for '\(licenseData.drmOperator)'")
+                        debugPrint("no downloader impl found for '\(licenseData.drmOperator)'")
                         keyRequest.processContentKeyResponseError(DRMKeySessionDelegateError.drmOperatorNotSupported)
                     }
                 }else{
-                    logger.warning("keyRequestCompletionHandler error data corrupted?: \(String(describing: error))")
+                    debugPrint("keyRequestCompletionHandler error data corrupted?: \(String(describing: error))")
                     keyRequest.processContentKeyResponseError(DRMKeySessionDelegateError.noSPCData)
                 }
             }else{
-                logger.warning("keyRequestCompletionHandler licenseUrl is nil")
+                debugPrint("keyRequestCompletionHandler licenseUrl is nil")
                 keyRequest.processContentKeyResponseError(DRMKeySessionDelegateError.noLicenseUrl)
             }
         }
         
         // download certificate
         if let certificateData = self.cachedCertificateData {
-            logger.debug("use cached certificate")
+            debugPrint("use cached certificate")
             keyRequest.makeStreamingContentKeyRequestData(
                 forApp: certificateData,
                 contentIdentifier: assetIDData,
                 options: [AVContentKeyRequestProtocolVersionsKey: [1]/*, AVAssetResourceLoadingRequestStreamingContentKeyRequestRequiresPersistentKey: true*/],
                 completionHandler: keyRequestCompletionHandler)
         }else{
-            if let certificateUrl = ConfigManager.shared.drmCertificates[.fairplay] {
+            if let certificateUrl = URL(string: "https://www.raiplay.it/dl/video/drm/fairplay.cer") {
                 NetworkRequest(
                     url: certificateUrl.absoluteString
                 ).responseData { result in
@@ -206,7 +206,7 @@ public class DRMKeySessionDelegate : NSObject, AVContentKeySessionDelegate {
                         case .success(let value):
                             self.cachedCertificateData = value
 
-                            logger.debug("download certificate successfully")
+                            debugPrint("download certificate successfully")
                             keyRequest.makeStreamingContentKeyRequestData(
                                 forApp: value,
                                 contentIdentifier: assetIDData,
@@ -215,7 +215,7 @@ public class DRMKeySessionDelegate : NSObject, AVContentKeySessionDelegate {
 
                         case .failure(let error):
                             let errorMessage = "download certificateData failed: \(error)"
-                            logger.error(errorMessage)
+                            debugPrint(errorMessage)
                             keyRequest.processContentKeyResponseError(DRMKeySessionDelegateError.noCertificateData)
                         }
                 }

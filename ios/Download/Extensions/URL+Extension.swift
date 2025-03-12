@@ -7,9 +7,7 @@
 
 import Foundation
 
-
 extension URL {
-    
     var queryDictionary: [String: String]? {
         return URLComponents(url: self, resolvingAgainstBaseURL: false)?
         .queryItems?.reduce(into: [String: String]()) {
@@ -17,7 +15,7 @@ extension URL {
         }
     }
 
-    public init?(string: String?) {
+    init?(string: String?) {
         guard let string = string else {
             return nil
         }
@@ -43,4 +41,37 @@ extension URL {
        // Returns the url from new url components
        return urlComponents.url!
    }
+    
+    var calculateSize: Float? {
+        let properties: [URLResourceKey] = [
+            .isRegularFileKey,
+            .totalFileAllocatedSizeKey,
+        ]
+        
+        guard let enumerator = FileManager.default.enumerator(
+            at: URL(fileURLWithPath: relativePath),
+            includingPropertiesForKeys: properties,
+            options: .skipsHiddenFiles,
+            errorHandler: nil
+        ) else {
+            return nil
+        }
+        
+        let urls: [URL] = enumerator
+            .compactMap { $0 as? URL }
+            .filter { $0.absoluteString.contains(".frag") }
+        
+        let regularFileResources: [URLResourceValues] = urls
+            .compactMap { try? $0.resourceValues(forKeys: Set(properties)) }
+            .filter { $0.isRegularFile == true }
+        
+        let sizes: [Int64] = regularFileResources
+            .compactMap { $0.totalFileAllocatedSize }
+            .compactMap { Int64($0) }
+        
+        let raw = sizes.reduce(0, +)
+        let mb = raw / (1024 * 1024)
+        
+        return Float(mb)
+    }
 }

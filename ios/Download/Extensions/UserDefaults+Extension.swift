@@ -12,25 +12,25 @@ extension UserDefaults {
         static let downloads = "downloads"
     }
     
-    func setDownloads(_ downloads: [NewDownloadModel]) {
+    func setDownloads(_ downloads: [DownloadModel]) {
         do {
             let encoded = try JSONEncoder().encode(downloads)
             set(encoded, forKey: Keys.downloads)
             synchronize()
         } catch let error {
-            logger.error("\(error)")
+            debugPrint("\(error)")
         }
     }
     
-    func getDownloads() -> [NewDownloadModel]? {
+    func getDownloads() -> [DownloadModel]? {
         guard let savedData = data(forKey: Keys.downloads) else {
             return nil
         }
         
         do {
-            return try JSONDecoder().decode([NewDownloadModel].self, from: savedData)
+            return try JSONDecoder().decode([DownloadModel].self, from: savedData)
         } catch let error {
-            logger.error("\(error)")
+            debugPrint("\(error)")
             return nil
         }
     }

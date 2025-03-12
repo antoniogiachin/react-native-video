@@ -67,7 +67,6 @@ public class AVPlayerDRMManager: Hashable  {
 #if targetEnvironment(simulator)
 #else
         if #available(iOS 11.2, *) {
-            
             var delegate: DRMKeySessionDelegate?
             
             if isFromPlayer {
@@ -75,7 +74,6 @@ public class AVPlayerDRMManager: Hashable  {
             } else {
                 delegate = DRMKeySessionDelegate(delegate: self.delegate, licenseData: licenseData)
             }
-            
             
             let drmLicenceBecomeReady: ((Data?) -> Void) = { [weak self] license in
                 self?.drmLicenceBecomeReady?(license)

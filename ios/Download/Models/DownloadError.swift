@@ -20,7 +20,7 @@ struct DownloadError: ReactDictionaryConvertible {
         message = msg
     }
     
-    init(with model: NewDownloadModel, msg: String) {
+    init(with model: DownloadModel, msg: String) {
         pathId = model.pathId
         programPathId = model.programInfo?.programPathId ?? ""
         ua = model.ua
