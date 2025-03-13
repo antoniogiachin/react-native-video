@@ -22,8 +22,6 @@ struct ProgramInfoModel: Codable {
     let title: String
     let description: String
     var mediaInfo: [MediaItemDetail]?
-    var bytesDownloaded: Int?
-    var totalBytes: Int?
     var id: String?
     
     var programPathId: String?

@@ -10,7 +10,7 @@ import React
 
 @objc(DownloadManagerModule)
 class DownloadManagerModule: RCTEventEmitter {
-    static var SELECTED_QUALITY: DownloadQualityOptions = .MEDIUM
+    static var selectedQuality: DownloadQualityOptions = .medium
     
     @objc func prepare() {
         DownloadManager.shared.notifyDownloadsChanged()
@@ -55,7 +55,7 @@ class DownloadManagerModule: RCTEventEmitter {
     }
     
     @objc func setQuality(_ quality: String) {
-        DownloadManagerModule.SELECTED_QUALITY = DownloadQualityOptions(rawValue: quality) ?? .MEDIUM
+        DownloadManagerModule.selectedQuality = DownloadQualityOptions(rawValue: quality) ?? .medium
     }
     
     private func getModelFromDictElseNotifyError(

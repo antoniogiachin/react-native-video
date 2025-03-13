@@ -31,5 +31,4 @@ class DownloadInfo: NSObject {
     }
     
     var task: AVAggregateAssetDownloadTask?
-    var state: DownloadState?
 }

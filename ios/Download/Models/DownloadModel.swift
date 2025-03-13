@@ -8,10 +8,6 @@
 import Foundation
 
 class DownloadModel: Codable, ReactDictionaryConvertible {
-    var identifier: String {
-        (pathId + (programInfo?.programPathId ?? "") + ua).sha1()
-    }
-    
     let pathId: String
     let ua: String
     let url: String
@@ -20,19 +16,25 @@ class DownloadModel: Codable, ReactDictionaryConvertible {
     var videoInfo: VideoInfoModel
     var programInfo: ProgramInfoModel?
     var expireDate: Date?
-    var state: DownloadState? /* {
+    var state: DownloadState? {
         didSet {
-            // FIXME
-            setBookmark()
+            // Updating bookmark location if needed
+            setBookmarkIfNeeded()
         }
-    } */
+    }
     var playerSource: String?
     
-    // Old properties:
+    lazy var identifier: String = {
+        (pathId + (programInfo?.programPathId ?? "") + ua).sha1()
+    }()
+    
+    // Internal properties:
     var _ckcData: Data?
     var _bitrate: Double?
-    var _location: URL?
-    var _bookmarkLocation: Data?
+    /// Used to resume a paused download task.
+    private(set) var _location: URL?
+    /// Used to persist access to the same file location even if it is moved or renamed by the user, after the download is completed.
+    private(set) var _bookmarkLocation: Data?
 }
 
 // MARK: - Retrocompatibility
@@ -59,17 +61,14 @@ extension DownloadModel {
     //        _bookmarkLocation = old.bookmarkLocation
     //    }
     
-    private func setBookmark() {
-        if _bookmarkLocation == nil, state == .completed {
+    func setBookmarkIfNeeded() {
+        if state == .completed, _bookmarkLocation == nil {
             _bookmarkLocation = try? location?.bookmarkData()
         }
     }
     
-    public var location: URL? {
+    var location: URL? {
         get {
-            /*
-             bookmark location is available when download is completed
-             */
             if let bookmarkLocation = _bookmarkLocation {
                 var bookmarkDataIsStale = false
                 
@@ -82,21 +81,16 @@ extension DownloadModel {
                     _bookmarkLocation = try? url.bookmarkData()
                     return nil
                 }
+                
                 return url
-            }
-            
-            /*
-             return nil if bookmark location is nil and download is completed,
-             it means that file is deleted from iphone settings
-             */
-            if state == .completed {
+            } else if state == .completed {
+                // Bookmark location is not available but the download is completed:
+                // it means that file was deleted by the user from the iPhone settings
                 return nil
+            } else {
+                // Returning the stored location, as the download was paused and it's not completed yet
+                return _location
             }
-            
-            /*
-             return stored location when download file is paused, it needs to resume caching task
-             */
-            return _location
         }
         set {
             _location = newValue
@@ -117,10 +111,10 @@ struct LicenseServerModel: Codable {
 }
 
 enum DRMType: String, Codable {
-    case WIDEVINE = "widevine"
-    case PLAYREADY = "playready"
-    case CLEARKEY = "clearkey"
-    case FAIRPLAY = "fairplay"
+    case widevine
+    case playready
+    case clearkey
+    case fairplay
 }
 
 struct DownloadSubtitlesModel: Codable {
