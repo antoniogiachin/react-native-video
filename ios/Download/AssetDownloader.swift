@@ -20,6 +20,14 @@ class AssetDownloader: NSObject {
     /// `AVAssetDownloadURLSession` used for managing AVAssetDownloadTasks
     private var session: AVAssetDownloadURLSession?
     
+    /// Semaphore to limit the number of simultaneous downloads.
+    private let semaphore = DispatchSemaphore(value: 3)
+    /// The queue used to manage download tasks.
+    private var queue = DispatchQueue(
+        label: "com.react-native-video.asset-downloader",
+        qos: .userInitiated
+    )
+    
     /// Internal list of `AVAssetDownloadTask` and its corresponding Info object
     private var downloading: [DownloadInfo] = []
     
@@ -45,7 +53,7 @@ class AssetDownloader: NSObject {
         configuration.shouldUseExtendedBackgroundIdleMode = true
         
         let queue = OperationQueue()
-        queue.qualityOfService = .userInteractive
+        queue.qualityOfService = .userInitiated
         
         // Create the AVAssetDownloadURLSession using the configuration
         session = AVAssetDownloadURLSession(
@@ -228,10 +236,15 @@ class AssetDownloader: NSObject {
         downloading.append(info)
         
         task.taskDescription = info.identifier
-        task.resume()
         
         // Notify change state
         delegate?.downloadStateChanged(assetInfo: info, state: .downloading)
+        
+        // Limiting the number of simultaneous downloads
+        queue.async { [weak self] in
+            self?.semaphore.wait()
+            task.resume()
+        }
     }
 }
 
@@ -247,6 +260,11 @@ extension AssetDownloader: AVAssetDownloadDelegate {
         task: URLSessionTask,
         didCompleteWithError error: Error?
     ) {
+        defer {
+            // Proceeding with the next download
+            semaphore.signal()
+        }
+        
         guard let item = item(for: task) else {
             // Not found
             return
