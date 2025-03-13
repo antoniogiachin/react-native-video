@@ -8,33 +8,41 @@
 import Foundation
 import AVFoundation
 
-class DownloadManager {
+class DownloadManager: NSObject {
     static let shared = DownloadManager()
     
     /// List of all downloaded and downloading items.
     private(set) var downloads: [DownloadModel] = [] {
         didSet {
-            saveDownloads(downloads)
+            saveDownloads()
         }
     }
     
-    /// List of currently downloading items. It will be cleared after all downloads are completed.
+    /// List of simultaneous downloads. It will be cleared once all downloads are completed.
     private var downloading: [DownloadModel] = []
     
     private let downloader = AssetDownloader()
     
-    private init() {
+    private override init() {
+        super.init()
+        
         NSKeyedUnarchiver.setClass(OldDownloadModel.self, forClassName: "RaiPlaySwift.DownloadModel")
         
         let downloads = fetchDownloads()
+        
         // Updating previous unfinished download sessions when launching the app
         for download in downloads {
             if download.state == .downloading {
                 download.state = .paused
+                downloading.append(download)
             }
         }
         self.downloads = downloads
         downloader.delegate = self
+        
+        if downloading.isEmpty == false {
+            notifyDownloadingProgress()
+        }
     }
     
     func resume(
@@ -61,40 +69,48 @@ class DownloadManager {
                 subtitles: download.subtitles
             ) { [weak self] subtitles, error in
                 guard let self else { return }
+                
                 if let error {
                     notifyError(error, for: download)
                     return
                 }
                 
+                download.state = .downloading
+                
+                // The same object is referenced in both downloads and downloading lists
                 downloads.append(download)
                 downloading.append(download)
-                notifyDownloadsProgress()
-                resume(download, licenseData: licenseData)
-            }
-        } else {
-            // Resuming or proceeding with a download
-            let asset = AVURLAsset(url: url)
-            downloader.resume(
-                assetInfo: DownloadInfo(
+                
+                // Proceeding with the download
+                let asset = AVURLAsset(url: url)
+                downloader.resume(DownloadInfo(
                     identifier: download.identifier,
                     asset: asset,
-                    licenseData: nil,
-                    bitrate: download._bitrate
-                )
-            )
+                    licenseData: licenseData
+                ))
+            }
+        } else {
+            // Resuming a download
+            download.state = .downloading
+            
+            let asset = AVURLAsset(url: download.location ?? url)
+            downloader.resume(DownloadInfo(
+                identifier: download.identifier,
+                asset: asset,
+                licenseData: licenseData,
+                bitrate: download._bitrate
+            ))
         }
     }
     
     func renew(_ download: DownloadModel, licenseData: RCTMediapolisModelLicenceServerMapDRMLicenceUrl?) {
         if let location = download.location {
             let avUrlAsset = AVURLAsset(url: location)
-            downloader.renew(
-                assetInfo: DownloadInfo(
-                    identifier: download.identifier,
-                    asset: avUrlAsset,
-                    licenseData: licenseData
-                )
-            ) { [weak self] result in
+            downloader.renew(DownloadInfo(
+                identifier: download.identifier,
+                asset: avUrlAsset,
+                licenseData: licenseData
+            )) { [weak self] result in
                 guard let self else { return }
                 switch result {
                 case .failure(let error):
@@ -109,9 +125,17 @@ class DownloadManager {
     }
     
     func pause(_ download: DownloadModel) {
-        if let download = get(download) {
-            downloader.cancelDownloadOfAsset(identifier: download.identifier)
+        guard let download = get(download) else {
+            // Item not found
+            return
         }
+        
+        downloader.cancel(identifier: download.identifier)
+        download.state = .paused
+        saveDownloads()
+        
+        notifyDownloadingProgress()
+        notifyDownloadsChanged()
     }
     
     private func get(_ download: DownloadModel) -> DownloadModel? {
@@ -123,35 +147,39 @@ class DownloadManager {
     }
     
     func delete(_ download: DownloadModel) {
-      if let download = get(download) {
-          downloader.cancelDownloadOfAsset(identifier: download.identifier)
-          
-          if let url = download.location {
-              do {
-                  //RIMOZIONE BOOKMARK HLS
-                  try FileManager.default.removeItem(at: url)
-              } catch {
-                  debugPrint(error.localizedDescription)
-              }
-          }
-          
-          let supportFiles = "\(DownloadManager.MEDIA_CACHE_KEY)/\(download.identifier)"
-          
-          if let url = URL(string: supportFiles) {
-              do {
-                  //RIMOZIONE BOOKMARK HLS
-                  try FileManager.default.removeItem(at: url)
-              } catch {
-                  debugPrint(error.localizedDescription)
-              }
-          }
-      }
-      
-      downloads.removeAll(where: { model in
-          model.identifier == download.identifier
-      })
-  }
-  
+        guard let download = get(download) else {
+            // Item not found
+            return
+        }
+        
+        downloader.cancel(identifier: download.identifier)
+        
+        if let url = download.location {
+            do {
+                try FileManager.default.removeItem(at: url)
+            } catch {
+                debugPrint(error.localizedDescription)
+            }
+        }
+        
+        let supportFiles = "\(DownloadManager.MEDIA_CACHE_KEY)/\(download.identifier)"
+        
+        if let url = URL(string: supportFiles) {
+            do {
+                try FileManager.default.removeItem(at: url)
+            } catch {
+                debugPrint(error.localizedDescription)
+            }
+        }
+        
+        downloads.removeAll(where: { model in
+            model.identifier == download.identifier
+        })
+        
+        notifyDownloadsChanged()
+        saveDownloads()
+    }
+    
     func notifyError(_ error: Error, for download: DownloadModel) {
         DownloadManagerModule.sendEvent(
             .onDownloadError,
@@ -162,41 +190,36 @@ class DownloadManager {
         )
     }
     
-    private func updateDownloads(
-        assetInfo: DownloadInfo,
+    private func update(
+        _ download: DownloadModel,
+        with info: DownloadInfo,
         state: DownloadState? = nil,
-        loaded: Double? = nil,
-        total: Double? = nil,
+        loaded: Int? = nil,
+        total: Int? = nil,
         location: URL? = nil,
         ckcData: Data? = nil
     ) {
-        downloads.modifyForEach { index, element in
-            if element.identifier == assetInfo.identifier {
-                if let state {
-                    element.state = state
-                }
-                if let loaded {
-                    element.videoInfo.bytesDownloaded = Int(loaded)
-                    element.programInfo?.bytesDownloaded = Int(loaded)
-                }
-                if let total {
-                    element.videoInfo.totalBytes = Int(total)
-                    element.programInfo?.totalBytes = Int(total)
-                }
-                // if let location = location {
-                //     element.location = location
-                // }
-                // if let ckcData = ckcData {
-                //     element.ckcData = ckcData
-                // }
-                // if let bitrate = assetInfo.bitrate {
-                //     element.bitrate = bitrate
-                // }
-            }
+        if let state {
+            download.state = state
+        }
+        if let loaded {
+            download.videoInfo.bytesDownloaded = loaded
+        }
+        if let total {
+            download.videoInfo.totalBytes = total
+        }
+        if let location {
+            download.location = location
+        }
+        if let ckcData {
+            download._ckcData = ckcData
+        }
+        if let bitrate = info.bitrate {
+            download._bitrate = bitrate
         }
     }
-  
-    func notifyDownloadsProgress() {
+    
+    func notifyDownloadingProgress() {
         let body = downloading.map { $0.toDictionary() }
         DownloadManagerModule.sendEvent(
             .onDownloadProgress,
@@ -270,7 +293,8 @@ class DownloadManager {
         return downloads
     }
     
-    func saveDownloads(_ downloads: [DownloadModel]) {
+    /// Use this to persist download info in UserDefaults.
+    private func saveDownloads() {
         UserDefaults.standard.setDownloads(downloads)
     }
     
@@ -369,31 +393,67 @@ class DownloadManager {
             }
         }
     }
+    
+    /// Clear downloading list if no simultaneous downloads are in progress.
+    private func clearDownloadingIfNeeded() {
+        if downloading.contains(where: { $0.state == .downloading }) == false {
+            downloading.removeAll()
+        }
+    }
 }
 
 extension DownloadManager: AssetDownloaderDelegate {
-    func downloadStateChanged(assetInfo: DownloadInfo, state: DownloadState) {
-        updateDownloads(assetInfo: assetInfo, state: state)
-        notifyDownloadsChanged()
-    }
-    
-    func downloadProgress(assetInfo: DownloadInfo, percentage: Double, loaded: Double, total: Double) {
-        updateDownloads(assetInfo: assetInfo, loaded: loaded, total: total)
-        notifyDownloadsProgress()
-    }
-    
-    func downloadError(assetInfo: DownloadInfo, error: Error) {
-        if let download = get(from: assetInfo) {
-            notifyError(error, for: download)
-            delete(download)
+    func downloadStateChanged(_ info: DownloadInfo, state: DownloadState) {
+        guard let download = get(from: info) else {
+            // Item not found
+            return
         }
+        
+        update(download, with: info, state: state)
+        saveDownloads()
+        
+        clearDownloadingIfNeeded()
+        notifyDownloadsChanged()
+        notifyDownloadingProgress()
     }
     
-    func downloadLocationAvailable(assetInfo: DownloadInfo, location: URL) {
-        updateDownloads(assetInfo: assetInfo, location: location)
+    func downloadProgress(_ info: DownloadInfo, loaded: Int, total: Int) {
+        guard let download = get(from: info) else {
+            // Item not found
+            return
+        }
+        
+        update(download, with: info, loaded: loaded, total: total)
+        notifyDownloadingProgress()
     }
     
-    func downloadCkcAvailable(assetInfo: DownloadInfo, ckc: Data) {
-        updateDownloads(assetInfo: assetInfo, ckcData: ckc)
+    func downloadError(_ info: DownloadInfo, error: Error) {
+        guard let download = get(from: info) else {
+            // Item not found
+            return
+        }
+        
+        notifyError(error, for: download)
+        delete(download)
+        saveDownloads()
+    }
+    
+    func downloadLocationAvailable(_ info: DownloadInfo, location: URL) {
+        guard let download = get(from: info) else {
+            // Item not found
+            return
+        }
+        
+        update(download, with: info, location: location)
+        saveDownloads()
+    }
+    
+    func downloadCkcAvailable(_ info: DownloadInfo, ckc: Data) {
+        guard let download = get(from: info) else {
+            // Item not found
+            return
+        }
+        
+        update(download, with: info, ckcData: ckc)
     }
 }

@@ -7,8 +7,8 @@
 
 import Foundation
 
-public enum DownloadQualityOptions: String {
-    case LOW = "Low"
-    case MEDIUM = "Medium"
-    case HIGH = "High"
+enum DownloadQualityOptions: String {
+    case low = "Low"
+    case medium = "Medium"
+    case high = "High"
 }
