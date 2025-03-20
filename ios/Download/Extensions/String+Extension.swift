@@ -31,7 +31,7 @@ extension String {
                 options: [],
                 range: NSRange(location: 0, length: count)
             ) != nil
-        } catch let error {
+        } catch {
             return false
         }
     }

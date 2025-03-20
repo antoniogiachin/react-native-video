@@ -3,6 +3,7 @@
 //  react-native-video
 //
 //  Created by Davide Balistreri on 07/03/25.
+//  Copyright © 2025 Rai - Radiotelevisione Italiana Spa. All rights reserved.
 //
 
 import Foundation
@@ -27,7 +28,7 @@ extension ReactDictionaryConvertible {
             let object = try decoder.decode(Self.self, from: data)
             return object
         } catch let error {
-            debugPrint("Error while decoding \(Self.self): \(error)")
+            debugPrint(" Error while decoding \(Self.self): \(error)")
             return nil
         }
     }

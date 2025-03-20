@@ -3,6 +3,7 @@
 //  react-native-video
 //
 //  Created by Davide Balistreri on 10/03/25.
+//  Copyright © 2025 Rai - Radiotelevisione Italiana Spa. All rights reserved.
 //
 
 import Foundation

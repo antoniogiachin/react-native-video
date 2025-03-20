@@ -3,20 +3,17 @@
 //  react-native-video
 //
 //  Created by Valerio CARMINE IENCO (KINETON) on 19/11/24.
+//  Copyright © 2025 Rai - Radiotelevisione Italiana Spa. All rights reserved.
 //
 
 import Foundation
 import AVFoundation
 
-class DownloadManager: NSObject {
+class DownloadManager: NSObject, DownloadLogging {
     static let shared = DownloadManager()
     
     /// List of all downloaded and downloading items.
-    private(set) var downloads: [DownloadModel] = [] {
-        didSet {
-            saveDownloads()
-        }
-    }
+    private(set) var downloads: [DownloadModel] = []
     
     /// List of simultaneous downloads. It will be cleared once all downloads are completed.
     private var downloading: [DownloadModel] = []
@@ -34,13 +31,14 @@ class DownloadManager: NSObject {
         for download in downloads {
             if download.state == .downloading {
                 download.state = .paused
-                downloading.append(download)
             }
         }
         self.downloads = downloads
         downloader.delegate = self
         
-        if downloading.isEmpty == false {
+        // Updating active download list
+        downloading = downloads.filter { $0.state == .paused }
+        if downloading.isNotEmpty {
             notifyDownloadingProgress()
         }
     }
@@ -49,8 +47,12 @@ class DownloadManager: NSObject {
         _ download: DownloadModel,
         licenseData: RCTMediapolisModelLicenceServerMapDRMLicenceUrl? = nil
     ) {
+        log(debug: "Resume download: \(download)")
+        
         guard let url = URL(string: download.url) else {
             // Invalid URL
+            log(error: "Invalid download URL: \(download)")
+            
             notifyError(
                 NSError(
                     domain: "HLSDownloadManager",
@@ -62,8 +64,16 @@ class DownloadManager: NSObject {
             return
         }
         
+        guard download.state != .downloading else {
+            // Already downloading
+            log(info: "Already downloading \(download)")
+            return
+        }
+        
         if downloads.firstIndex(of: download) == nil {
             // Starting a new download
+            log(info: "Starting a new download: \(download)")
+            
             downloadSubtitles(
                 videoId: download.identifier,
                 subtitles: download.subtitles
@@ -83,7 +93,7 @@ class DownloadManager: NSObject {
                 
                 // Proceeding with the download
                 let asset = AVURLAsset(url: url)
-                downloader.resume(DownloadInfo(
+                downloader.resume(DownloadAssetTaskModel(
                     identifier: download.identifier,
                     asset: asset,
                     licenseData: licenseData
@@ -91,10 +101,11 @@ class DownloadManager: NSObject {
             }
         } else {
             // Resuming a download
+            log(info: "Resuming a download: \(download)")
             download.state = .downloading
             
             let asset = AVURLAsset(url: download.location ?? url)
-            downloader.resume(DownloadInfo(
+            downloader.resume(DownloadAssetTaskModel(
                 identifier: download.identifier,
                 asset: asset,
                 licenseData: licenseData,
@@ -103,10 +114,15 @@ class DownloadManager: NSObject {
         }
     }
     
-    func renew(_ download: DownloadModel, licenseData: RCTMediapolisModelLicenceServerMapDRMLicenceUrl?) {
+    func renew(
+        _ download: DownloadModel,
+        licenseData: RCTMediapolisModelLicenceServerMapDRMLicenceUrl?
+    ) {
+        log(debug: "Renew download: \(download)")
+        
         if let location = download.location {
             let avUrlAsset = AVURLAsset(url: location)
-            downloader.renew(DownloadInfo(
+            downloader.renew(DownloadAssetTaskModel(
                 identifier: download.identifier,
                 asset: avUrlAsset,
                 licenseData: licenseData
@@ -115,18 +131,21 @@ class DownloadManager: NSObject {
                 switch result {
                 case .failure(let error):
                     notifyRenewLicense(download: download, result: false)
-                    debugPrint("license renewed failed \(error)")
+                    log(error: "License renew failed for \(download): \(error.localizedDescription)")
                 case .success(_):
                     notifyRenewLicense(download: download, result: true)
-                    debugPrint("license renewed")
+                    log(info: "License renewed: \(download)")
                 }
             }
         }
     }
     
     func pause(_ download: DownloadModel) {
+        log(info: "Pausing download: \(download)")
+        
         guard let download = get(download) else {
             // Item not found
+            log(debug: "Pause download not found: \(download)")
             return
         }
         
@@ -139,16 +158,19 @@ class DownloadManager: NSObject {
     }
     
     private func get(_ download: DownloadModel) -> DownloadModel? {
-        downloads.first(where: { $0.identifier == download.identifier })
+        downloads.first(where: { $0 == download })
     }
     
-    private func get(from: DownloadInfo) -> DownloadModel? {
+    private func get(from: DownloadAssetTaskModel) -> DownloadModel? {
         downloads.first(where: { $0.identifier == from.identifier })
     }
     
     func delete(_ download: DownloadModel) {
+        log(verbose: "Deleting download: \(download)")
+        
         guard let download = get(download) else {
             // Item not found
+            log(debug: "Delete download not found: \(download)")
             return
         }
         
@@ -157,8 +179,9 @@ class DownloadManager: NSObject {
         if let url = download.location {
             do {
                 try FileManager.default.removeItem(at: url)
+                log(info: "Download files deleted: \(url)")
             } catch {
-                debugPrint(error.localizedDescription)
+                log(error: "Delete download files at url (\(url)) error: \(error.localizedDescription)")
             }
         }
         
@@ -167,14 +190,15 @@ class DownloadManager: NSObject {
         if let url = URL(string: supportFiles) {
             do {
                 try FileManager.default.removeItem(at: url)
+                log(debug: "Download supporting files deleted: \(url)")
             } catch {
-                debugPrint(error.localizedDescription)
+                log(debug: "Delete supporting download files at url (\(url)) error: \(error.localizedDescription)")
             }
         }
         
-        downloads.removeAll(where: { model in
-            model.identifier == download.identifier
-        })
+        log(verbose: "Removing download from lists: \(download)")
+        downloads.remove { $0 == download }
+        downloading.remove { $0 == download }
         
         notifyDownloadsChanged()
         saveDownloads()
@@ -192,7 +216,7 @@ class DownloadManager: NSObject {
     
     private func update(
         _ download: DownloadModel,
-        with info: DownloadInfo,
+        with info: DownloadAssetTaskModel,
         state: DownloadState? = nil,
         loaded: Int? = nil,
         total: Int? = nil,
@@ -220,6 +244,8 @@ class DownloadManager: NSObject {
     }
     
     func notifyDownloadingProgress() {
+        log(verbose: "Notifying downloading progress")
+        
         let body = downloading.map { $0.toDictionary() }
         DownloadManagerModule.sendEvent(
             .onDownloadProgress,
@@ -228,6 +254,8 @@ class DownloadManager: NSObject {
     }
     
     func notifyDownloadsChanged() {
+        log(verbose: "Notifying downloads changed")
+        
         let body = downloads.map { $0.toDictionary() }
         DownloadManagerModule.sendEvent(
             .onDownloadListChanged,
@@ -257,15 +285,15 @@ class DownloadManager: NSObject {
                 let arrayOfData = v as? [Data]
                 let oldDownloads = arrayOfData?.compactMap({ elem -> DownloadModel? in
                     do {
-                        if let model = try NSKeyedUnarchiver.unarchiveTopLevelObjectWithData(elem) as? OldDownloadModel, let _ = model.location {
+                        if let model = try NSKeyedUnarchiver.unarchivedObject(ofClass: OldDownloadModel.self, from: elem),
+                            model.location != nil {
                             model.ua = k
-                            // FIXME: return DownloadModel(old: model)
-                            return nil
+                            return DownloadModel(from: model)
                         }
-                        debugPrint("something went wrong during recover old downloads")
+                        log(error: "Something went wrong while recovering an old download")
                         return nil
-                    } catch let error {
-                        debugPrint("\(error)")
+                    } catch {
+                        log(error: "Something went wrong while recovering an old download: \(error)")
                         return nil
                     }
                 })
@@ -274,7 +302,7 @@ class DownloadManager: NSObject {
             return nil
         })
         
-        if let downloads, !downloads.isEmpty {
+        if let downloads, downloads.isNotEmpty {
             //defaults.removeObject(forKey: OLD_MEDIA_KEY)
             //debugPrint("REMOVED OLD MEDIA")
         }
@@ -403,7 +431,7 @@ class DownloadManager: NSObject {
 }
 
 extension DownloadManager: AssetDownloaderDelegate {
-    func downloadStateChanged(_ info: DownloadInfo, state: DownloadState) {
+    func downloadStateChanged(_ info: DownloadAssetTaskModel, state: DownloadState) {
         guard let download = get(from: info) else {
             // Item not found
             return
@@ -417,7 +445,7 @@ extension DownloadManager: AssetDownloaderDelegate {
         notifyDownloadingProgress()
     }
     
-    func downloadProgress(_ info: DownloadInfo, loaded: Int, total: Int) {
+    func downloadProgress(_ info: DownloadAssetTaskModel, loaded: Int, total: Int) {
         guard let download = get(from: info) else {
             // Item not found
             return
@@ -427,7 +455,7 @@ extension DownloadManager: AssetDownloaderDelegate {
         notifyDownloadingProgress()
     }
     
-    func downloadError(_ info: DownloadInfo, error: Error) {
+    func downloadError(_ info: DownloadAssetTaskModel, error: Error) {
         guard let download = get(from: info) else {
             // Item not found
             return
@@ -436,9 +464,10 @@ extension DownloadManager: AssetDownloaderDelegate {
         notifyError(error, for: download)
         delete(download)
         saveDownloads()
+        notifyDownloadingProgress()
     }
     
-    func downloadLocationAvailable(_ info: DownloadInfo, location: URL) {
+    func downloadLocationAvailable(_ info: DownloadAssetTaskModel, location: URL) {
         guard let download = get(from: info) else {
             // Item not found
             return
@@ -448,7 +477,7 @@ extension DownloadManager: AssetDownloaderDelegate {
         saveDownloads()
     }
     
-    func downloadCkcAvailable(_ info: DownloadInfo, ckc: Data) {
+    func downloadCkcAvailable(_ info: DownloadAssetTaskModel, ckc: Data) {
         guard let download = get(from: info) else {
             // Item not found
             return
