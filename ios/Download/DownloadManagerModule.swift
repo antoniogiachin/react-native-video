@@ -3,6 +3,7 @@
 //  react-native-video
 //
 //  Created by Valerio CARMINE IENCO (KINETON) on 19/11/24.
+//  Copyright © 2025 Rai - Radiotelevisione Italiana Spa. All rights reserved.
 //
 
 import Foundation
@@ -11,6 +12,12 @@ import React
 @objc(DownloadManagerModule)
 class DownloadManagerModule: RCTEventEmitter {
     static var selectedQuality: DownloadQualityOptions = .medium
+    
+#if DEBUG
+    static var logLevel: DownloadLoggingLevel = .info
+#else
+    static var logLevel: DownloadLoggingLevel = .none
+#endif
     
     @objc func prepare() {
         DownloadManager.shared.notifyDownloadsChanged()

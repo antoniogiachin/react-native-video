@@ -3,20 +3,21 @@
 //  react-native-video
 //
 //  Created by Valerio CARMINE IENCO (KINETON) on 19/11/24.
+//  Copyright © 2025 Rai - Radiotelevisione Italiana Spa. All rights reserved.
 //
 
 import UIKit
 import AVFoundation
 
 protocol AssetDownloaderDelegate: NSObjectProtocol {
-    func downloadStateChanged(_ info: DownloadInfo, state: DownloadState)
-    func downloadProgress(_ info: DownloadInfo, loaded: Int, total: Int)
-    func downloadError(_ info: DownloadInfo, error: Error)
-    func downloadLocationAvailable(_ info: DownloadInfo, location: URL)
-    func downloadCkcAvailable(_ info: DownloadInfo, ckc: Data)
+    func downloadStateChanged(_ info: DownloadAssetTaskModel, state: DownloadState)
+    func downloadProgress(_ info: DownloadAssetTaskModel, loaded: Int, total: Int)
+    func downloadError(_ info: DownloadAssetTaskModel, error: Error)
+    func downloadLocationAvailable(_ info: DownloadAssetTaskModel, location: URL)
+    func downloadCkcAvailable(_ info: DownloadAssetTaskModel, ckc: Data)
 }
 
-class AssetDownloader: NSObject {
+class AssetDownloader: NSObject, DownloadLogging {
     /// `AVAssetDownloadURLSession` used for managing AVAssetDownloadTasks.
     private var session: AVAssetDownloadURLSession?
     
@@ -29,7 +30,7 @@ class AssetDownloader: NSObject {
     )
     
     /// Internal list of Info objects and their associated `AVAssetDownloadTask`.
-    private var downloading: [DownloadInfo] = []
+    private var downloading: [DownloadAssetTaskModel] = []
     
     /// Delegate to be informed of changes during downloads.
     weak var delegate: AssetDownloaderDelegate?
@@ -65,7 +66,7 @@ class AssetDownloader: NSObject {
         )
     }
     
-    func resume(_ info: DownloadInfo) {
+    func resume(_ info: DownloadAssetTaskModel) {
         if let licenseData = info.licenseData {
             let drmManager = AVPlayerDRMManager(asset: info.asset, licenseData: licenseData)
             
@@ -99,7 +100,7 @@ class AssetDownloader: NSObject {
         }
     }
     
-    func renew(_ info: DownloadInfo, completion: ((Result<Data, Error>) -> Void)? = nil) {
+    func renew(_ info: DownloadAssetTaskModel, completion: ((Result<Data, Error>) -> Void)? = nil) {
         let drmManager = AVPlayerDRMManager(asset: info.asset, licenseData: info.licenseData)
         
         let drmLicenceBecomeReady: ((Data?) -> Void) = {[weak self] ckcData in
@@ -133,15 +134,16 @@ class AssetDownloader: NSObject {
         
         if let item, let task = item.task {
             task.cancel()
-            debugPrint("ASSET DOWNLOADER: Cancelled download of \(item.identifier)")
+            downloading.remove { $0 == item }
+            log(debug: "Cancelled download task: \(item)")
         }
     }
     
     /// Start the download task.
-    private func start(_ info: DownloadInfo) {
+    private func start(_ info: DownloadAssetTaskModel) {
         let asset = info.asset
         
-        debugPrint("ASSET DOWNLOADER: Starting download of \(info.identifier)")
+        log(debug: "Initializing download: \(info)")
         
         /*
          Creates and initializes an AVAggregateAssetDownloadTask to download multiple AVMediaSelections
@@ -203,8 +205,8 @@ class AssetDownloader: NSObject {
                 })
             }
             
-            debugPrint("cachingTask mediaSelections \(mediaSelections.count)")
-            debugPrint("cachingTask bitrate \(bitrate)")
+            log(verbose: "cachingTask mediaSelections \(mediaSelections.count)")
+            log(verbose: "cachingTask bitrate \(bitrate)")
         }
         
         //using cached bitrate if download has been resumed after pause
@@ -222,7 +224,7 @@ class AssetDownloader: NSObject {
             options: options
         )
         else {
-            debugPrint("ASSET DOWNLOADER: Failed to create AVAggregateAssetDownloadTask")
+            log(error: "Failed to create AVAggregateAssetDownloadTask for \(info)")
             return
         }
         
@@ -232,15 +234,18 @@ class AssetDownloader: NSObject {
         // Notify change state
         delegate?.downloadStateChanged(info, state: .downloading)
         
-        // Limiting the number of simultaneous downloads
+        // Limiting number of simultaneous downloads
+        log(debug: "Queueing download: \(info)")
         queue.async { [weak self] in
             self?.semaphore.wait()
+            
+            self?.log(debug: "Starting download: \(info)")
             task.resume()
         }
     }
     
     private func calculateMedianBitrate(bitrates: [Double]) -> Double? {
-        guard !bitrates.isEmpty else { return nil }
+        guard bitrates.isNotEmpty else { return nil }
         
         let sorted = bitrates.sorted()
         if sorted.count % 2 == 0 {
@@ -254,7 +259,7 @@ class AssetDownloader: NSObject {
 // MARK: - AVAssetDownloadDelegate
 extension AssetDownloader: AVAssetDownloadDelegate {
     /// Helper method to retrieve the DownloadInfo object for a given task.
-    private func item(for task: URLSessionTask) -> DownloadInfo? {
+    private func item(for task: URLSessionTask) -> DownloadAssetTaskModel? {
         downloading.first(where: { $0.task == task })
     }
     
@@ -279,7 +284,7 @@ extension AssetDownloader: AVAssetDownloadDelegate {
         if let error = error as NSError? {
             switch (error.domain, error.code) {
             case (NSURLErrorDomain, NSURLErrorCancelled):
-                debugPrint("ASSET DOWNLOADER: Download was cancelled")
+                log(error: "Download was cancelled: \(item)")
                 
                 /*
                  This task was canceled, you should perform cleanup using the
@@ -287,11 +292,11 @@ extension AssetDownloader: AVAssetDownloadDelegate {
                  */
                 
             case (NSURLErrorDomain, NSURLErrorUnknown):
-                debugPrint("ASSET DOWNLOADER: An unexpected error occured \(error)")
+                log(error: "An unexpected error occured for \(item): \(error.description)")
                 delegate?.downloadError(item, error: error)
                 
             default:
-                debugPrint("ASSET DOWNLOADER: An unexpected error occured \(error)")
+                log(error: "An unexpected error occured for \(item): \(error.description)")
                 
 #if targetEnvironment(simulator)
                 delegate?.downloadError(item, error: AssetDownloaderError.simulatorNotSupported)
@@ -300,7 +305,7 @@ extension AssetDownloader: AVAssetDownloadDelegate {
 #endif
             }
         } else {
-            debugPrint("ASSET DOWNLOADER: Downloading completed with success")
+            log(info: "Download completed: \(item)")
             delegate?.downloadStateChanged(item, state: .completed)
         }
     }
@@ -310,13 +315,13 @@ extension AssetDownloader: AVAssetDownloadDelegate {
         aggregateAssetDownloadTask task: AVAggregateAssetDownloadTask,
         willDownloadTo location: URL
     ) {
-        debugPrint("ASSET DOWNLOADER: location available")
-        
         guard let item = item(for: task) else {
             // Not found
-            debugPrint("ASSET DOWNLOADER: asset not present in activeDownloadsMap")
+            log(error: "Asset not present in the downloading list for task: \(task)")
             return
         }
+        
+        log(debug: "Download location available: \(item)")
         
         delegate?.downloadLocationAvailable(item, location: location)
     }
@@ -329,16 +334,28 @@ extension AssetDownloader: AVAssetDownloadDelegate {
         timeRangeExpectedToLoad: CMTimeRange,
         for mediaSelection: AVMediaSelection
     ) {
-        let percentage = Int(task.progress.fractionCompleted * 100)
-        debugPrint("ASSET DOWNLOADER downloaded \(percentage)%")
+        var percentComplete = 0.0
+        var loadedTimeRangeSeconds = 0.0
+        var timeRangeExpectedToLoadSeconds = 0.0
+        for value in loadedTimeRanges {
+            let loadedTimeRange: CMTimeRange = value.timeRangeValue
+            loadedTimeRangeSeconds += CMTimeGetSeconds(loadedTimeRange.duration)
+            timeRangeExpectedToLoadSeconds += CMTimeGetSeconds(timeRangeExpectedToLoad.duration)
+            percentComplete += loadedTimeRangeSeconds/timeRangeExpectedToLoadSeconds
+        }
         
-        let downloadedBytes = Int(task.progress.completedUnitCount)
-        let totalBytes = Int(task.progress.totalUnitCount)
+        // "Bytes" are only available if the download has not been paused,
+        // so we are using "seconds" instead, which are always available.
+        // Total download size will be calculated after the download is completed.
+        let downloadedBytes = Int(loadedTimeRangeSeconds)
+        let totalBytes = Int(timeRangeExpectedToLoadSeconds)
         
-        guard let item = item(for: task), percentage > 0 else {
+        guard let item = item(for: task) else {
             // Not found
             return
         }
+        
+        log(debug: "Download progress for \(item): \(Int(percentComplete * 100))%")
         
         // Notify change state
         delegate?.downloadProgress(item, loaded: downloadedBytes, total: totalBytes)

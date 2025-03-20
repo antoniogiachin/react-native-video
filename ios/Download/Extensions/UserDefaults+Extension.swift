@@ -3,11 +3,12 @@
 //  react-native-video
 //
 //  Created by Davide Balistreri on 07/03/25.
+//  Copyright © 2025 Rai - Radiotelevisione Italiana Spa. All rights reserved.
 //
 
 import Foundation
 
-extension UserDefaults {
+extension UserDefaults: DownloadLogging {
     private enum Keys {
         static let downloads = "downloads"
     }
@@ -17,20 +18,24 @@ extension UserDefaults {
             let encoded = try JSONEncoder().encode(downloads)
             set(encoded, forKey: Keys.downloads)
             synchronize()
-        } catch let error {
-            debugPrint("\(error)")
+            log(verbose: "Downloads data saved")
+        } catch {
+            log(error: "\(error.localizedDescription)")
         }
     }
     
     func getDownloads() -> [DownloadModel]? {
+        log(verbose: "Loading saved downloads data")
+        
         guard let savedData = data(forKey: Keys.downloads) else {
+            log(verbose: "No saved downloads data available")
             return nil
         }
         
         do {
             return try JSONDecoder().decode([DownloadModel].self, from: savedData)
-        } catch let error {
-            debugPrint("\(error)")
+        } catch {
+            log(error: "\(error.localizedDescription)")
             return nil
         }
     }

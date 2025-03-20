@@ -1,14 +1,15 @@
 //
-//  DownloadInfo.swift
+//  DownloadAssetTaskModel.swift
 //  react-native-video
 //
 //  Created by Valerio CARMINE IENCO (KINETON) on 19/11/24.
+//  Copyright © 2025 Rai - Radiotelevisione Italiana Spa. All rights reserved.
 //
 
 import Foundation
 import AVFoundation
 
-class DownloadInfo: NSObject {
+class DownloadAssetTaskModel {
     let asset: AVURLAsset
     let licenseData: MediapolisModelLicenceServerMapDRMLicenceUrl?
     var identifier: String
@@ -26,9 +27,17 @@ class DownloadInfo: NSObject {
         self.bitrate = bitrate
     }
     
-    static func ==(lhs: DownloadInfo, rhs: DownloadInfo) -> Bool {
+    var task: AVAggregateAssetDownloadTask?
+}
+
+extension DownloadAssetTaskModel: Equatable {
+    static func ==(lhs: DownloadAssetTaskModel, rhs: DownloadAssetTaskModel) -> Bool {
         return lhs.identifier == rhs.identifier
     }
-    
-    var task: AVAggregateAssetDownloadTask?
+}
+
+extension DownloadAssetTaskModel: CustomDebugStringConvertible {
+    var debugDescription: String {
+        "\(identifier.prefix(9))"
+    }
 }
