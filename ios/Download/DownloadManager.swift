@@ -23,7 +23,8 @@ class DownloadManager: NSObject, DownloadLogging {
     private override init() {
         super.init()
         
-        NSKeyedUnarchiver.setClass(OldDownloadModel.self, forClassName: "RaiPlaySwift.DownloadModel")
+        // Retrocompatibility with old download system
+        OldDownloadModel.registerOldClasses()
         
         let downloads = fetchDownloads()
         
@@ -275,39 +276,49 @@ class DownloadManager: NSObject, DownloadLogging {
     
     private static let MEDIA_CACHE_KEY = "media_cache"
     private static let OLD_MEDIA_KEY = "downloadingKey"
-    private static let MEDIA_CACHE_KEY_DEFAULTS = Bundle.main.bundleIdentifier! + "_" + MEDIA_CACHE_KEY
     
+    /// Used to migrate old downloads to the new system.
     private func getOldDownloads() -> [DownloadModel]? {
-        let downloads = UserDefaults.standard.dictionary(
+        guard let oldDownloads = UserDefaults.standard.dictionary(
             forKey: DownloadManager.OLD_MEDIA_KEY
-        )?.compactMap ({ k, v -> [DownloadModel]? in
-            if k.isValidEmail {
-                let arrayOfData = v as? [Data]
-                let oldDownloads = arrayOfData?.compactMap({ elem -> DownloadModel? in
-                    do {
-                        if let model = try NSKeyedUnarchiver.unarchivedObject(ofClass: OldDownloadModel.self, from: elem),
-                            model.location != nil {
-                            model.ua = k
-                            return DownloadModel(from: model)
-                        }
-                        log(error: "Something went wrong while recovering an old download")
-                        return nil
-                    } catch {
-                        log(error: "Something went wrong while recovering an old download: \(error)")
-                        return nil
-                    }
-                })
-                return oldDownloads
-            }
+        ) else {
+            log(verbose: "No old downloads found")
             return nil
-        })
-        
-        if let downloads, downloads.isNotEmpty {
-            //defaults.removeObject(forKey: OLD_MEDIA_KEY)
-            //debugPrint("REMOVED OLD MEDIA")
         }
         
-        return downloads?.reduce([], +)
+        let allDownloads = oldDownloads.compactMap { (key, value) -> [DownloadModel]? in
+            guard key.isValidEmail, let array = value as? [Data] else {
+                log(verbose: "Found an invalid old download")
+                return nil
+            }
+            
+            return array.compactMap { data -> DownloadModel? in
+                do {
+                    if let old = try NSKeyedUnarchiver.unarchiveTopLevelObjectWithData(
+                        data
+                    ) as? OldDownloadModel, old.location != nil {
+                        let download = DownloadModel(from: old)
+                        download.ua = key
+                        return download
+                    } else {
+                        log(error: "Found an invalid old download without location")
+                        return nil
+                    }
+                } catch {
+                    log(error: "Something went wrong while recovering an old download: \(error)")
+                    return nil
+                }
+            }
+        }
+        
+        let downloads = allDownloads.flatMap { $0 }
+        
+        if !downloads.isEmpty {
+            // UserDefaults.standard.removeObject(forKey: DownloadManager.OLD_MEDIA_KEY)
+            // debugPrint("REMOVED OLD MEDIA")
+        }
+        
+        return downloads.isEmpty ? nil : downloads
     }
     
     func fetchDownloads() -> [DownloadModel] {

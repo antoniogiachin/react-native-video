@@ -25,7 +25,13 @@ class DownloadModel: Codable, ReactDictionaryConvertible {
             updatePropertiesIfNeeded()
         }
     }
-    var playerSource: String?
+    var playerSource: String? {
+        if #available(iOS 16.0, *) {
+            location?.path()
+        } else {
+            location?.path
+        }
+    }
     
     lazy var identifier: String = {
         (pathId + (programInfo?.programPathId ?? "") + ua).sha1()
@@ -35,10 +41,11 @@ class DownloadModel: Codable, ReactDictionaryConvertible {
     var _ckcData: Data?
     var _bitrate: Double?
     
-    /// Downloading files location, used to resume a download task after it is paused.
+    /// Downloaded files location, also used to resume a download task after it is paused.
     var location: URL? {
         get {
             if let bookmarkLocation = _bookmarkLocation {
+                // Download completed and bookmarked
                 var bookmarkDataIsStale = false
                 
                 let url = try? URL(
@@ -53,14 +60,10 @@ class DownloadModel: Codable, ReactDictionaryConvertible {
                 }
                 
                 return url
-//            } else if state == .completed {
-//                // Bookmark location is not available but the download is completed:
-//                // it means that file was deleted by the user from the iPhone settings
-//                return nil
-            } else {
-                // Returning the stored location, as the download was paused and it's not completed yet
-                return _location
             }
+            
+            // The download might be paused
+            return _location
         }
         set {
             _location = newValue
@@ -79,9 +82,11 @@ class DownloadModel: Codable, ReactDictionaryConvertible {
             _bookmarkLocation = try? _location?.bookmarkData()
         }
         
-        if let size = getSize() {
-            videoInfo.totalBytes = size
-            videoInfo.bytesDownloaded = videoInfo.totalBytes
+        if videoInfo.totalBytes == nil || videoInfo.totalBytes == 0 {
+            if let size = getSize() {
+                videoInfo.totalBytes = size
+                videoInfo.bytesDownloaded = videoInfo.totalBytes
+            }
         }
     }
     
@@ -95,7 +100,6 @@ class DownloadModel: Codable, ReactDictionaryConvertible {
         programInfo: ProgramInfoModel? = nil,
         expireDate: String? = nil,
         state: DownloadState? = nil,
-        playerSource: String? = nil,
         _ckcData: Data? = nil,
         _bitrate: Double? = nil,
         _location: URL? = nil,
@@ -110,7 +114,6 @@ class DownloadModel: Codable, ReactDictionaryConvertible {
         self.programInfo = programInfo
         self.expireDate = expireDate
         self.state = state
-        self.playerSource = playerSource
         self._ckcData = _ckcData
         self._bitrate = _bitrate
         self._location = _location
@@ -121,30 +124,6 @@ class DownloadModel: Codable, ReactDictionaryConvertible {
 extension DownloadModel: CustomDebugStringConvertible {
     var debugDescription: String {
         "\(identifier.prefix(9))"
-    }
-}
-
-// MARK: - Retrocompatibility
-
-extension DownloadModel {
-    convenience init(from old: OldDownloadModel) {
-        self.init(
-            pathId: old.pathId,
-            ua: old.ua,
-            url: "",
-            videoInfo: VideoInfoModel(
-                templateImg: "",
-                title: "",
-                description: ""
-            ),
-            state: .completed,
-            _ckcData: old.ckcData,
-            _location: old._location,
-            _bookmarkLocation: old.bookmarkLocation
-        )
-        // programInfo = ProgramInfoModel(
-        //     programPathId: old.programPathId
-        // )
     }
 }
 
