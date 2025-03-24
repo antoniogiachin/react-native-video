@@ -26,7 +26,7 @@ public class MediapolisModelLicenceServerMapDRMLicenceUrl: Codable {
             return nil
         }
     }
-        
+    
     public var drmOperator: DRMOperator {
         switch operatorDrm?.trimWhitespaces().lowercased() {
         case "azure":

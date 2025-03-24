@@ -12,7 +12,7 @@ class DownloadModel: Codable, ReactDictionaryConvertible {
     var pathId: String
     var ua: String
     var url: String
-    var subtitles: [DownloadSubtitlesModel]?
+    var subtitles: [SubtitleModel]?
     var drm: LicenseServerModel?
     /// Il video che stiamo scaricando
     var videoInfo: VideoInfoModel
@@ -25,13 +25,8 @@ class DownloadModel: Codable, ReactDictionaryConvertible {
             updatePropertiesIfNeeded()
         }
     }
-    var playerSource: String? {
-        if #available(iOS 16.0, *) {
-            location?.path()
-        } else {
-            location?.path
-        }
-    }
+    /// The path of the downloaded video assets, used to play the video.
+    var playerSource: String?
     
     lazy var identifier: String = {
         (pathId + (programInfo?.programPathId ?? "") + ua).sha1()
@@ -82,6 +77,8 @@ class DownloadModel: Codable, ReactDictionaryConvertible {
             _bookmarkLocation = try? _location?.bookmarkData()
         }
         
+        playerSource = location?.path
+        
         if videoInfo.totalBytes == nil || videoInfo.totalBytes == 0 {
             if let size = getSize() {
                 videoInfo.totalBytes = size
@@ -94,7 +91,7 @@ class DownloadModel: Codable, ReactDictionaryConvertible {
         pathId: String,
         ua: String,
         url: String,
-        subtitles: [DownloadSubtitlesModel]? = nil,
+        subtitles: [SubtitleModel]? = nil,
         drm: LicenseServerModel? = nil,
         videoInfo: VideoInfoModel,
         programInfo: ProgramInfoModel? = nil,
@@ -118,6 +115,8 @@ class DownloadModel: Codable, ReactDictionaryConvertible {
         self._bitrate = _bitrate
         self._location = _location
         self._bookmarkLocation = _bookmarkLocation
+        
+        updatePropertiesIfNeeded()
     }
 }
 
@@ -187,7 +186,7 @@ enum DRMType: String, Codable {
     case fairplay
 }
 
-struct DownloadSubtitlesModel: Codable {
+struct SubtitleModel: Codable {
     let language: String   // lingua dei sottotitoli
     let webUrl: String     // url dei sottotitoli
     let localUrl: String?  // url dei sottotitoli locali

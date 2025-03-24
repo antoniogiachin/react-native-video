@@ -35,6 +35,19 @@ struct NetworkRequest {
         perform(responseType: .data, completion: completion)
     }
     
+    func asyncResponseData() async throws -> Data {
+        return try await withCheckedThrowingContinuation { continuation in
+            perform(responseType: .data) { (result: Result<Data, Error>) in
+                switch result {
+                case .success(let data):
+                    continuation.resume(returning: data)
+                case .failure(let error):
+                    continuation.resume(throwing: error)
+                }
+            }
+        }
+    }
+    
     private enum ResponseType {
         case jsonObject
         case string

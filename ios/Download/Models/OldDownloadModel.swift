@@ -136,24 +136,30 @@ extension OldDownloadModel {
         NSKeyedUnarchiver.setClass(OldRightsManagementModel.self, forClassName: "RaiPlaySwift.RightsManagementModel")
         NSKeyedUnarchiver.setClass(OldDirittiModel.self, forClassName: "RaiPlaySwift.DirittiModel")
         NSKeyedUnarchiver.setClass(OldDRMModel.self, forClassName: "RaiPlaySwift.DRMModel")
+        NSKeyedUnarchiver.setClass(OldVideoModel.self, forClassName: "RaiPlaySwift.NewVideoModel")
+        NSKeyedUnarchiver.setClass(OldSubtitleModel.self, forClassName: "RaiPlaySwift.SottotitoloArray")
     }
 }
 
 class OldProgramDetailModel: NSObject, NSCoding {
     var pathID: String?
     var name: String?
+    var descriptionLong: String?
     var titoloEpisodio: String?
     var programInfo: OldProgramInfoModel?
+    var video: OldVideoModel?
     var rightsmanagement: OldRightsManagementModel?
     
     var offlineImage: UIImage?         //episodio
     var offlineImageProgram: UIImage?  //con logo
     
     @objc required init(coder aDecoder: NSCoder) {
+        descriptionLong =  aDecoder.decodeObject(forKey: "descriptionLong") as? String
         name = aDecoder.decodeObject(forKey: "name") as? String
         pathID = aDecoder.decodeObject(forKey: "pathID") as? String
         titoloEpisodio = aDecoder.decodeObject(forKey: "titoloEpisodio") as? String
         programInfo = aDecoder.decodeObject(forKey: "isPartOf") as? OldProgramInfoModel
+        video = aDecoder.decodeObject(forKey: "video") as? OldVideoModel
         rightsmanagement = aDecoder.decodeObject(forKey: "rights_management") as? OldRightsManagementModel
         offlineImage = aDecoder.decodeObject(forKey: "offlineImage") as? UIImage
         offlineImageProgram = aDecoder.decodeObject(forKey: "offlineImageProgram") as? UIImage
@@ -216,6 +222,36 @@ class OldProgramInfoModel: NSObject, NSCoding {
     }
 }
 
+class OldVideoModel: NSObject, NSCoding {
+    var subtitlesArray: [OldSubtitleModel]?
+    
+    @objc required init(coder aDecoder: NSCoder) {
+        subtitlesArray = aDecoder.decodeObject(forKey: "subtitles_Array") as? [OldSubtitleModel]
+    }
+    
+    func encode(with coder: NSCoder) {
+        // Encoding not needed
+    }
+}
+
+class OldSubtitleModel: NSObject, NSCoding {
+    var url : String?
+    var language : String?
+    var label: String?
+    var subtitleData: Data?
+    
+    @objc required init(coder aDecoder: NSCoder) {
+        url = aDecoder.decodeObject(forKey: "url") as? String
+        language = aDecoder.decodeObject(forKey: "language") as? String
+        subtitleData = aDecoder.decodeObject(forKey: "subtitleData") as? Data
+        label = aDecoder.decodeObject(forKey: "label") as? String
+    }
+    
+    func encode(with coder: NSCoder) {
+        // Encoding not needed
+    }
+}
+
 // MARK: - Retrocompatibility
 
 extension DownloadModel {
@@ -224,28 +260,20 @@ extension DownloadModel {
         let totalBytes = old.size ?? 0
         let bytesDownloaded = totalBytes * (old.progress ?? 0)
         
-        // Images conversion
-        let videoImage = ImageHelper.shared.saveImage(
-            image: old.newProgram?.offlineImage
-        )
-        let programImage = ImageHelper.shared.saveImage(
-            image: old.newProgram?.offlineImageProgram
-        )
-        
         self.init(
             pathId: old.newProgram?.pathID ?? "",
             ua: old.ua,
             url: "",
             videoInfo: VideoInfoModel(
-                templateImg: videoImage ?? "",
+                templateImg: "",
                 title: old.newProgram?.titoloEpisodio ?? "",
-                description: "",
+                description: old.newProgram?.descriptionLong ?? "",
                 bytesDownloaded: Int(bytesDownloaded),
                 totalBytes: Int(totalBytes),
                 id: old.newProgram?.pathID
             ),
             programInfo: ProgramInfoModel(
-                templateImg: programImage ?? "",
+                templateImg: "",
                 title: old.newProgram?.programInfo?.name ?? "",
                 description: "",
                 programPathId: old.newProgram?.programInfo?.pathID
@@ -256,5 +284,51 @@ extension DownloadModel {
             _location: old._location,
             _bookmarkLocation: old.bookmarkLocation
         )
+        
+        // Images conversion
+        if let image = ImageHelper.shared.save(
+            old.newProgram?.offlineImage,
+            in: identifier
+        ) {
+            videoInfo.templateImg = image
+        }
+        
+        if let image = ImageHelper.shared.save(
+            old.newProgram?.offlineImageProgram,
+            in: identifier
+        ) {
+            programInfo?.templateImg = image
+        }
+        
+        // Subtitles persistence
+        var updatedSubtitles: [SubtitleModel] = []
+        for subtitle in old.newProgram?.video?.subtitlesArray ?? [] {
+            guard
+                let data = subtitle.subtitleData,
+                let language = subtitle.language,
+                let url = subtitle.url
+            else {
+                // print(" Skipping subtitle with missing data")
+                continue
+            }
+            
+            guard let path = try? SubtitleHelper.shared.save(
+                data,
+                in: identifier,
+                fileName: language
+            ) else {
+                // print(" Failed to save subtitle")
+                continue
+            }
+            
+            updatedSubtitles.append(
+                SubtitleModel(
+                    language: language,
+                    webUrl: url,
+                    localUrl: path
+                )
+            )
+        }
+        subtitles = updatedSubtitles
     }
 }

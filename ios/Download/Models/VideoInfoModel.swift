@@ -9,7 +9,7 @@
 import Foundation
 
 struct VideoInfoModel: Codable {
-    let templateImg: String
+    var templateImg: String
     let title: String
     let description: String
     var mediaInfo: [MediaItemDetail]?
@@ -19,7 +19,7 @@ struct VideoInfoModel: Codable {
 }
 
 struct ProgramInfoModel: Codable {
-    let templateImg: String
+    var templateImg: String
     let title: String
     let description: String
     var mediaInfo: [MediaItemDetail]?

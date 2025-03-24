@@ -33,5 +33,3 @@ public class RCTMediapolisModelLicenceServerMapDRMLicenceUrl: MediapolisModelLic
         fatalError("init(from:) has not been implemented")
     }
 }
-
-

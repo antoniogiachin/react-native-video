@@ -13,10 +13,14 @@ class DownloadManager: NSObject, DownloadLogging {
     static let shared = DownloadManager()
     
     /// List of all downloaded and downloading items.
-    private(set) var downloads: [DownloadModel] = []
+    private var _downloads: [DownloadModel] = []
+    /// Thread-safe lock for downloads list.
+    private let downloadsLock = NSLock()
     
     /// List of simultaneous downloads. It will be cleared once all downloads are completed.
-    private var downloading: [DownloadModel] = []
+    private var _downloading: [DownloadModel] = []
+    /// Thread-safe lock for downloading list.
+    private let downloadingLock = NSLock()
     
     private let downloader = AssetDownloader()
     
@@ -34,11 +38,12 @@ class DownloadManager: NSObject, DownloadLogging {
                 download.state = .paused
             }
         }
-        self.downloads = downloads
+        setDownloads(downloads)
         downloader.delegate = self
         
         // Updating active download list
-        downloading = downloads.filter { $0.state == .paused }
+        let downloading = downloads.filter { $0.state == .paused }
+        setDownloading(downloading)
         if downloading.isNotEmpty {
             notifyDownloadingProgress()
         }
@@ -48,21 +53,30 @@ class DownloadManager: NSObject, DownloadLogging {
         _ download: DownloadModel,
         licenseData: RCTMediapolisModelLicenceServerMapDRMLicenceUrl? = nil
     ) {
+        Task {
+            do {
+                try await asyncResume(download, licenseData: licenseData)
+            } catch {
+                notifyError(error, for: download)
+            }
+        }
+    }
+    
+    private func asyncResume(
+        _ download: DownloadModel,
+        licenseData: RCTMediapolisModelLicenceServerMapDRMLicenceUrl? = nil
+    ) async throws {
         log(debug: "Resume download: \(download)")
         
         guard let url = URL(string: download.url) else {
             // Invalid URL
             log(error: "Invalid download URL: \(download)")
             
-            notifyError(
-                NSError(
-                    domain: "HLSDownloadManager",
-                    code: -1,
-                    userInfo: [NSLocalizedDescriptionKey: "Invalid URL"]
-                ),
-                for: download
+            throw NSError(
+                domain: "HLSDownloadManager",
+                code: -1,
+                userInfo: [NSLocalizedDescriptionKey: "Invalid URL"]
             )
-            return
         }
         
         guard download.state != .downloading else {
@@ -71,35 +85,49 @@ class DownloadManager: NSObject, DownloadLogging {
             return
         }
         
-        if downloads.firstIndex(of: download) == nil {
+        if getDownloads().firstIndex(of: download) == nil {
             // Starting a new download
             log(info: "Starting a new download: \(download)")
             
-            downloadSubtitles(
+            // The same object is referenced in both downloads and downloading lists
+            download.state = .downloading
+            addDownload(download)
+            addDownloading(download)
+            
+            // Downloading subtitles
+            log(debug: "Downloading subtitles: \(download)")
+            let updatedSubtitles = await downloadSubtitles(
                 videoId: download.identifier,
                 subtitles: download.subtitles
-            ) { [weak self] subtitles, error in
-                guard let self else { return }
-                
-                if let error {
-                    notifyError(error, for: download)
-                    return
-                }
-                
-                download.state = .downloading
-                
-                // The same object is referenced in both downloads and downloading lists
-                downloads.append(download)
-                downloading.append(download)
-                
-                // Proceeding with the download
-                let asset = AVURLAsset(url: url)
-                downloader.resume(DownloadAssetTaskModel(
-                    identifier: download.identifier,
-                    asset: asset,
-                    licenseData: licenseData
-                ))
+            )
+            download.subtitles = updatedSubtitles
+            
+            // Downloading thumbnails
+            log(debug: "Downloading thumbnails: \(download)")
+            if let thumbnail = await ImageHelper.shared.downloadAndSave(
+                from: download.videoInfo.templateImg,
+                in: download.identifier
+            ) {
+                log(verbose: "Thumbnail downloaded and saved: \(thumbnail)")
+                download.videoInfo.templateImg = thumbnail
             }
+            
+            if let thumbnail = await ImageHelper.shared.downloadAndSave(
+                from: download.programInfo?.templateImg,
+                in: download.identifier
+            ) {
+                log(verbose: "Thumbnail downloaded and saved: \(thumbnail)")
+                download.programInfo?.templateImg = thumbnail
+            }
+            
+            // Proceeding with asset files download
+            log(debug: "Proceeding with asset files download: \(download)")
+            let asset = AVURLAsset(url: url)
+            downloader.resume(DownloadAssetTaskModel(
+                identifier: download.identifier,
+                asset: asset,
+                licenseData: licenseData
+            ))
         } else {
             // Resuming a download
             log(info: "Resuming a download: \(download)")
@@ -159,11 +187,11 @@ class DownloadManager: NSObject, DownloadLogging {
     }
     
     private func get(_ download: DownloadModel) -> DownloadModel? {
-        downloads.first(where: { $0 == download })
+        getDownloads().first(where: { $0 == download })
     }
     
     private func get(from: DownloadAssetTaskModel) -> DownloadModel? {
-        downloads.first(where: { $0.identifier == from.identifier })
+        getDownloads().first(where: { $0.identifier == from.identifier })
     }
     
     func delete(_ download: DownloadModel) {
@@ -177,29 +205,18 @@ class DownloadManager: NSObject, DownloadLogging {
         
         downloader.cancel(identifier: download.identifier)
         
-        if let url = download.location {
-            do {
-                try FileManager.default.removeItem(at: url)
-                log(info: "Download files deleted: \(url)")
-            } catch {
-                log(error: "Delete download files at url (\(url)) error: \(error.localizedDescription)")
-            }
-        }
-        
-        let supportFiles = "\(DownloadManager.MEDIA_CACHE_KEY)/\(download.identifier)"
-        
-        if let url = URL(string: supportFiles) {
-            do {
-                try FileManager.default.removeItem(at: url)
-                log(debug: "Download supporting files deleted: \(url)")
-            } catch {
-                log(debug: "Delete supporting download files at url (\(url)) error: \(error.localizedDescription)")
-            }
+        do {
+            try FileHelper.shared.delete(download)
+            log(info: "Download files deleted: \(download)")
+        } catch {
+            log(error: "Error while deleting download files: \(error.localizedDescription)")
+            notifyError(error, for: download)
+            return
         }
         
         log(verbose: "Removing download from lists: \(download)")
-        downloads.remove { $0 == download }
-        downloading.remove { $0 == download }
+        removeDownload(download)
+        removeDownloading(download)
         
         notifyDownloadsChanged()
         saveDownloads()
@@ -247,7 +264,7 @@ class DownloadManager: NSObject, DownloadLogging {
     func notifyDownloadingProgress() {
         log(verbose: "Notifying downloading progress")
         
-        let body = downloading.map { $0.toDictionary() }
+        let body = getDownloading().map { $0.toDictionary() }
         DownloadManagerModule.sendEvent(
             .onDownloadProgress,
             body: body
@@ -257,7 +274,7 @@ class DownloadManager: NSObject, DownloadLogging {
     func notifyDownloadsChanged() {
         log(verbose: "Notifying downloads changed")
         
-        let body = downloads.map { $0.toDictionary() }
+        let body = getDownloads().map { $0.toDictionary() }
         DownloadManagerModule.sendEvent(
             .onDownloadListChanged,
             body: body
@@ -274,7 +291,6 @@ class DownloadManager: NSObject, DownloadLogging {
     
     // MARK: - Media
     
-    private static let MEDIA_CACHE_KEY = "media_cache"
     private static let OLD_MEDIA_KEY = "downloadingKey"
     
     /// Used to migrate old downloads to the new system.
@@ -334,109 +350,43 @@ class DownloadManager: NSObject, DownloadLogging {
     
     /// Use this to persist download info in UserDefaults.
     private func saveDownloads() {
-        UserDefaults.standard.setDownloads(downloads)
-    }
-    
-    static func cacheDirectoryPath() -> URL {
-        let cachePath = NSSearchPathForDirectoriesInDomains(.documentDirectory, .userDomainMask, true)[0]
-        return URL(fileURLWithPath: cachePath)
-    }
-    
-    static func createDirectoryIfNotExists(
-        withName name: String
-    ) -> (url: URL?, error: Error?) {
-        let directoryUrl = cacheDirectoryPath().appendingPathComponent(name)
-        if FileManager.default.fileExists(atPath: directoryUrl.path) {
-            return (directoryUrl, nil)
-        }
-        do {
-            try FileManager.default.createDirectory(
-                at: directoryUrl,
-                withIntermediateDirectories: true,
-                attributes: nil
-            )
-            return (directoryUrl, nil)
-        } catch  {
-            return (nil, error)
-        }
+        UserDefaults.standard.setDownloads(getDownloads())
     }
     
     // MARK: - Subtitles
     
-    private static let SUBTITLES_PATH = "subtitles"
-    
     func downloadSubtitles(
         videoId: String,
-        subtitles: [DownloadSubtitlesModel]?,
-        completion: @escaping (_ subtitles: [DownloadSubtitlesModel]?, _ err: Error?) -> Void
-    ) {
-        guard let subtitles else {
-            completion(nil, nil)
-            return
+        subtitles: [SubtitleModel]?
+    ) async -> [SubtitleModel] {
+        var updatedSubtitles: [SubtitleModel] = []
+        
+        for subtitle in subtitles ?? [] {
+            do {
+                let url = try await SubtitleHelper.shared.downloadAndSave(
+                    from: subtitle.webUrl,
+                    in: videoId,
+                    fileName: subtitle.language
+                )
+                log(verbose: "Subtitle downloaded and saved: \(subtitle.language)")
+                
+                updatedSubtitles.append(SubtitleModel(
+                    language: subtitle.language,
+                    webUrl: subtitle.webUrl,
+                    localUrl: url
+                ))
+            } catch {
+                log(error: "Error while downloading subtitle (\(subtitle.language)): \(error)")
+            }
         }
         
-        var cachedSubtitles: [DownloadSubtitlesModel] = []
-        var localError: Error?
-        let group = DispatchGroup()
-        subtitles.forEach { subtitle in
-            group.enter()
-            if let url = URL(string: subtitle.webUrl) {
-                let subtitleId = subtitle.language
-                downloadData(url: url) { data, error in
-                    if let error {
-                        localError = error
-                        group.leave()
-                        return
-                    }
-                    let diskUrl = DownloadManager.createDirectoryIfNotExists(
-                        withName: "\(DownloadManager.MEDIA_CACHE_KEY)/\(videoId)/\(DownloadManager.SUBTITLES_PATH)/\(subtitleId)"
-                    )
-                    if let error = diskUrl.error {
-                        localError = error
-                        group.leave()
-                        return
-                    }
-                    let updatedSubtitle = DownloadSubtitlesModel(
-                        language: subtitle.language,
-                        webUrl: subtitle.webUrl,
-                        localUrl: diskUrl.url?.absoluteString
-                    )
-                    cachedSubtitles.append(updatedSubtitle)
-                    group.leave()
-                }
-            } else {
-                localError = NSError(domain: "url or subtitle id not valid", code: 500)
-                group.leave()
-            }
-        }
-        if let localError {
-            group.notify(queue: .main, execute: {
-                completion(nil, localError)
-            })
-            return
-        }
-        group.notify(queue: .main, execute: {
-            completion(cachedSubtitles, nil)
-        })
-    }
-    
-    private func downloadData(url: URL, completion: @escaping (Data?, Error?) -> Void) {
-        NetworkRequest(
-            url: url.absoluteString
-        ).responseData { result in
-            switch result {
-            case .success(let data):
-                completion(data, nil)
-            case .failure(let error):
-                completion(nil, error)
-            }
-        }
+        return updatedSubtitles
     }
     
     /// Clear downloading list if no simultaneous downloads are in progress.
     private func clearDownloadingIfNeeded() {
-        if downloading.contains(where: { $0.state == .downloading }) == false {
-            downloading.removeAll()
+        if getDownloading().contains(where: { $0.state == .downloading }) == false {
+            removeAllDownloading()
         }
     }
 }
@@ -495,5 +445,65 @@ extension DownloadManager: AssetDownloaderDelegate {
         }
         
         update(download, with: info, ckcData: ckc)
+    }
+}
+
+// MARK: - Thread-safe access to downloads
+
+extension DownloadManager {
+    func addDownload(_ download: DownloadModel) {
+        downloadsLock.withLock {
+            _downloads.append(download)
+        }
+    }
+    
+    func removeDownload(_ download: DownloadModel) {
+        downloadsLock.withLock {
+            _downloads.remove { $0 == download }
+        }
+    }
+    
+    func setDownloads(_ downloads: [DownloadModel]) {
+        downloadsLock.withLock {
+            _downloads = downloads
+        }
+    }
+    
+    func getDownloads() -> [DownloadModel] {
+        downloadsLock.lock()
+        let copy = _downloads
+        downloadsLock.unlock()
+        return copy
+    }
+    
+    func addDownloading(_ download: DownloadModel) {
+        downloadingLock.withLock {
+            _downloading.append(download)
+        }
+    }
+    
+    func removeDownloading(_ download: DownloadModel) {
+        downloadingLock.withLock {
+            _downloading.remove { $0 == download }
+        }
+    }
+    
+    func removeAllDownloading() {
+        downloadingLock.withLock {
+            _downloading.removeAll()
+        }
+    }
+    
+    func getDownloading() -> [DownloadModel] {
+        downloadingLock.lock()
+        let copy = _downloading
+        downloadingLock.unlock()
+        return copy
+    }
+    
+    func setDownloading(_ downloading: [DownloadModel]) {
+        downloadingLock.withLock {
+            _downloading = downloading
+        }
     }
 }

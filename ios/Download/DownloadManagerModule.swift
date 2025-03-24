@@ -94,7 +94,7 @@ class DownloadManagerModule: RCTEventEmitter {
         resolver: @escaping RCTPromiseResolveBlock,
         rejecter: @escaping RCTPromiseRejectBlock
     ) {
-        let downloads = DownloadManager.shared.downloads
+        let downloads = DownloadManager.shared.getDownloads()
         resolver(downloads.map { $0.toDictionary() })
     }
     
