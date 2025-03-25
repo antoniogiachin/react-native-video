@@ -11,13 +11,14 @@ import Foundation
 class DownloadModel: Codable, ReactDictionaryConvertible {
     var pathId: String
     var ua: String
+    /// URL of the video asset to download.
     var url: String
     var subtitles: [SubtitleModel]?
     var drm: LicenseServerModel?
-    /// Il video che stiamo scaricando
-    var videoInfo: VideoInfoModel
-    /// Il programma a cui appartiene il video
+    /// Details of the program which the downloaded content is part of (e.g. the TV show).
     var programInfo: ProgramInfoModel?
+    /// Details of the content which the downloaded video is part of (e.g. the episode).
+    var videoInfo: VideoInfoModel
     var expireDate: String?
     var state: DownloadState? {
         didSet {
@@ -28,14 +29,24 @@ class DownloadModel: Codable, ReactDictionaryConvertible {
     /// The path of the downloaded video assets, used to play the video.
     var playerSource: String?
     
-    lazy var identifier: String = {
-        (pathId + (programInfo?.programPathId ?? "") + ua).sha1()
-    }()
+    private var _identifier: String?
+    /// Unique identifier for the download, it is also used as subfolder name in the `media_cache` directory.
+    var identifier: String {
+        if let _identifier {
+            return _identifier
+        } else {
+            // Creating a unique identifier
+            let _identifier = (pathId + (programInfo?.programPathId ?? "") + ua).sha1()
+            self._identifier = _identifier
+            return _identifier
+        }
+    }
     
     // Internal properties:
     var _ckcData: Data?
     var _bitrate: Double?
     
+    private var _location: URL?
     /// Downloaded files location, also used to resume a download task after it is paused.
     var location: URL? {
         get {
@@ -64,10 +75,9 @@ class DownloadModel: Codable, ReactDictionaryConvertible {
             _location = newValue
         }
     }
-    private var _location: URL?
     
     /// Used to persist access to the same file location after the download is completed,
-    /// even if the file is moved or renamed by the user.
+    /// even if the file gets moved or renamed by the user.
     private(set) var _bookmarkLocation: Data?
     
     private func updatePropertiesIfNeeded() {
@@ -78,15 +88,10 @@ class DownloadModel: Codable, ReactDictionaryConvertible {
         }
         
         playerSource = location?.path
-        
-        if videoInfo.totalBytes == nil || videoInfo.totalBytes == 0 {
-            if let size = getSize() {
-                videoInfo.totalBytes = size
-                videoInfo.bytesDownloaded = videoInfo.totalBytes
-            }
-        }
+        updateSize()
     }
     
+    /// Used to migrate old downloads to the new structure.
     init(
         pathId: String,
         ua: String,
@@ -97,6 +102,7 @@ class DownloadModel: Codable, ReactDictionaryConvertible {
         programInfo: ProgramInfoModel? = nil,
         expireDate: String? = nil,
         state: DownloadState? = nil,
+        _identifier: String,
         _ckcData: Data? = nil,
         _bitrate: Double? = nil,
         _location: URL? = nil,
@@ -111,6 +117,7 @@ class DownloadModel: Codable, ReactDictionaryConvertible {
         self.programInfo = programInfo
         self.expireDate = expireDate
         self.state = state
+        self._identifier = _identifier
         self._ckcData = _ckcData
         self._bitrate = _bitrate
         self._location = _location
@@ -133,6 +140,7 @@ extension DownloadModel: Equatable {
 }
 
 extension DownloadModel {
+    /// Calculates the size of the downloaded asset files, in bytes.
     private func getSize() -> Int? {
         guard let url = location else {
             return nil
@@ -170,6 +178,13 @@ extension DownloadModel {
         // )
         
         return raw
+    }
+    
+    private func updateSize() {
+        if let size = getSize() {
+            videoInfo.totalBytes = size
+            videoInfo.bytesDownloaded = videoInfo.totalBytes
+        }
     }
 }
 

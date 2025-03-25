@@ -279,6 +279,7 @@ extension DownloadModel {
                 programPathId: old.newProgram?.programInfo?.pathID
             ),
             state: old.assetStatus,
+            _identifier: old.identifier,
             _ckcData: old.ckcData,
             _bitrate: old.bitrate,
             _location: old._location,

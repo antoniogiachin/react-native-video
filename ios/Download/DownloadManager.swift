@@ -39,7 +39,9 @@ class DownloadManager: NSObject, DownloadLogging {
             }
         }
         setDownloads(downloads)
-        downloader.delegate = self
+        
+        // Updating downloads status and saving eventually migrated downloads
+        saveDownloads()
         
         // Updating active download list
         let downloading = downloads.filter { $0.state == .paused }
@@ -47,6 +49,8 @@ class DownloadManager: NSObject, DownloadLogging {
         if downloading.isNotEmpty {
             notifyDownloadingProgress()
         }
+        
+        downloader.delegate = self
     }
     
     func resume(
@@ -70,7 +74,7 @@ class DownloadManager: NSObject, DownloadLogging {
         
         guard let url = URL(string: download.url) else {
             // Invalid URL
-            log(error: "Invalid download URL: \(download)")
+            log(error: "Invalid download URL (\(download)): \(download.url)")
             
             throw NSError(
                 domain: "HLSDownloadManager",
@@ -93,6 +97,7 @@ class DownloadManager: NSObject, DownloadLogging {
             download.state = .downloading
             addDownload(download)
             addDownloading(download)
+            notifyDownloadingProgress()
             
             // Downloading subtitles
             log(debug: "Downloading subtitles: \(download)")
@@ -194,7 +199,7 @@ class DownloadManager: NSObject, DownloadLogging {
         getDownloads().first(where: { $0.identifier == from.identifier })
     }
     
-    func delete(_ download: DownloadModel) {
+    func delete(_ download: DownloadModel, notify: Bool = true) {
         log(verbose: "Deleting download: \(download)")
         
         guard let download = get(download) else {
@@ -210,16 +215,16 @@ class DownloadManager: NSObject, DownloadLogging {
             log(info: "Download files deleted: \(download)")
         } catch {
             log(error: "Error while deleting download files: \(error.localizedDescription)")
-            notifyError(error, for: download)
-            return
         }
         
         log(verbose: "Removing download from lists: \(download)")
         removeDownload(download)
         removeDownloading(download)
         
-        notifyDownloadsChanged()
-        saveDownloads()
+        if notify {
+            notifyDownloadsChanged()
+            saveDownloads()
+        }
     }
     
     func notifyError(_ error: Error, for download: DownloadModel) {
@@ -291,6 +296,31 @@ class DownloadManager: NSObject, DownloadLogging {
     
     // MARK: - Media
     
+    func fetchDownloads() -> [DownloadModel] {
+        var downloads: [DownloadModel] = []
+        if let oldDownloads = getOldDownloads() {
+            downloads.append(contentsOf: oldDownloads)
+        }
+        if let newDownloads = UserDefaults.standard.getDownloads() {
+            downloads.append(contentsOf: newDownloads)
+        }
+        return downloads
+    }
+    
+    /// Use this to persist download info in UserDefaults.
+    private func saveDownloads() {
+        UserDefaults.standard.setDownloads(getDownloads())
+    }
+    
+    /// Clear downloading list if no simultaneous downloads are in progress.
+    private func clearDownloadingIfNeeded() {
+        if getDownloading().contains(where: { $0.state == .downloading }) == false {
+            removeAllDownloading()
+        }
+    }
+    
+    // MARK: - Migration
+    
     private static let OLD_MEDIA_KEY = "downloadingKey"
     
     /// Used to migrate old downloads to the new system.
@@ -302,7 +332,7 @@ class DownloadManager: NSObject, DownloadLogging {
             return nil
         }
         
-        let allDownloads = oldDownloads.compactMap { (key, value) -> [DownloadModel]? in
+        let migrated = oldDownloads.compactMap { (key, value) -> [DownloadModel]? in
             guard key.isValidEmail, let array = value as? [Data] else {
                 log(verbose: "Found an invalid old download")
                 return nil
@@ -325,32 +355,14 @@ class DownloadManager: NSObject, DownloadLogging {
                     return nil
                 }
             }
+        }.flatMap { $0 }
+        
+        if migrated.isNotEmpty {
+            UserDefaults.standard.removeObject(forKey: DownloadManager.OLD_MEDIA_KEY)
+            log(info: "Old downloads migrated and removed")
         }
         
-        let downloads = allDownloads.flatMap { $0 }
-        
-        if !downloads.isEmpty {
-            // UserDefaults.standard.removeObject(forKey: DownloadManager.OLD_MEDIA_KEY)
-            // debugPrint("REMOVED OLD MEDIA")
-        }
-        
-        return downloads.isEmpty ? nil : downloads
-    }
-    
-    func fetchDownloads() -> [DownloadModel] {
-        var downloads: [DownloadModel] = []
-        if let oldDownloads = getOldDownloads() {
-            downloads.append(contentsOf: oldDownloads)
-        }
-        if let newDownloads = UserDefaults.standard.getDownloads() {
-            downloads.append(contentsOf: newDownloads)
-        }
-        return downloads
-    }
-    
-    /// Use this to persist download info in UserDefaults.
-    private func saveDownloads() {
-        UserDefaults.standard.setDownloads(getDownloads())
+        return migrated.isNotEmpty ? migrated : nil
     }
     
     // MARK: - Subtitles
@@ -381,13 +393,6 @@ class DownloadManager: NSObject, DownloadLogging {
         }
         
         return updatedSubtitles
-    }
-    
-    /// Clear downloading list if no simultaneous downloads are in progress.
-    private func clearDownloadingIfNeeded() {
-        if getDownloading().contains(where: { $0.state == .downloading }) == false {
-            removeAllDownloading()
-        }
     }
 }
 
@@ -423,8 +428,9 @@ extension DownloadManager: AssetDownloaderDelegate {
         }
         
         notifyError(error, for: download)
-        delete(download)
+        delete(download, notify: false)
         saveDownloads()
+        notifyDownloadsChanged()
         notifyDownloadingProgress()
     }
     

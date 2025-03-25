@@ -139,19 +139,11 @@ class AssetDownloader: NSObject, DownloadLogging {
         }
     }
     
-    /// Start the download task.
+    /// Creates and initializes an `AVAggregateAssetDownloadTask` to download multiple `AVMediaSelections` on an `AVURLAsset`.
     private func start(_ info: DownloadAssetTaskModel) {
         let asset = info.asset
         
         log(debug: "Initializing download: \(info)")
-        
-        /*
-         Creates and initializes an AVAggregateAssetDownloadTask to download multiple AVMediaSelections
-         on an AVURLAsset.
-         
-         For the initial download, we ask the URLSession for an AVAssetDownloadTask with a minimum bitrate
-         corresponding with one of the lower bitrate variants in the asset.
-         */
         
         var mediaSelections: [AVMediaSelection] = []
         var options: [String: Any]?
@@ -236,6 +228,7 @@ class AssetDownloader: NSObject, DownloadLogging {
         
         // Limiting number of simultaneous downloads
         log(debug: "Queueing download: \(info)")
+        log(verbose: "Download url: \(asset.url)")
         queue.async { [weak self] in
             self?.semaphore.wait()
             
@@ -278,7 +271,7 @@ extension AssetDownloader: AVAssetDownloadDelegate {
             return
         }
         
-        // Cleanup the downloading list
+        // Clean the downloading list
         downloading.remove { $0 == item }
         
         if let error = error as NSError? {
@@ -286,13 +279,8 @@ extension AssetDownloader: AVAssetDownloadDelegate {
             case (NSURLErrorDomain, NSURLErrorCancelled):
                 log(error: "Download was cancelled: \(item)")
                 
-                /*
-                 This task was canceled, you should perform cleanup using the
-                 URL saved from AVAssetDownloadDelegate.urlSession(_:assetDownloadTask:didFinishDownloadingTo:).
-                 */
-                
             case (NSURLErrorDomain, NSURLErrorUnknown):
-                log(error: "An unexpected error occured for \(item): \(error.description)")
+                log(error: "An unknown error occured for \(item): \(error.description)")
                 delegate?.downloadError(item, error: error)
                 
             default:
@@ -321,7 +309,7 @@ extension AssetDownloader: AVAssetDownloadDelegate {
             return
         }
         
-        log(debug: "Download location available: \(item)")
+        log(debug: "Download location available (\(item)): \(location)")
         
         delegate?.downloadLocationAvailable(item, location: location)
     }
