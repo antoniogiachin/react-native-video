@@ -223,6 +223,7 @@ const Video = forwardRef<VideoRef, ReactVideoProps>(
         exitPictureInPicture,
         restoreUserInterfaceForPictureInPictureStopCompleted: unsupported,
         nativeHtmlVideoRef: nativeRef,
+        updateCMCD: unsupported,
       }),
       [
         seek,

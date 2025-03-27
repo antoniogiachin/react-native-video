@@ -1,17 +1,19 @@
 import Foundation
 
+typealias CMCDParamsTuple = (String, Any)
+
 struct CMCDParams {
-    let cmcdObject: [(String, Any)]
-    let cmcdRequest: [(String, Any)]
-    let cmcdSession: [(String, Any)]
-    let cmcdStatus: [(String, Any)]
+    let cmcdObject: [CMCDParamsTuple]
+    let cmcdRequest: [CMCDParamsTuple]
+    let cmcdSession: [CMCDParamsTuple]
+    let cmcdStatus: [CMCDParamsTuple]
     let mode: Int
 
     init(
-        cmcdObject: [(String, Any)] = [],
-        cmcdRequest: [(String, Any)] = [],
-        cmcdSession: [(String, Any)] = [],
-        cmcdStatus: [(String, Any)] = [],
+        cmcdObject: [CMCDParamsTuple] = [],
+        cmcdRequest: [CMCDParamsTuple] = [],
+        cmcdSession: [CMCDParamsTuple] = [],
+        cmcdStatus: [CMCDParamsTuple] = [],
         mode: Int = 1
     ) {
         self.cmcdObject = cmcdObject
@@ -33,7 +35,7 @@ struct CMCDParams {
         )
     }
 
-    private static func parseKeyValuePairs(from array: [[String: Any]]?) -> [(String, Any)] {
+    private static func parseKeyValuePairs(from array: [[String: Any]]?) -> [CMCDParamsTuple] {
         guard let array = array else { return [] }
 
         return array.compactMap { item in
@@ -50,5 +52,26 @@ struct CMCDParams {
 
             return value != nil ? (key, value!) : nil
         }
+    }
+}
+
+extension [CMCDParamsTuple] {
+    /// Searchs for a key in the tuple array and returns its `String` value.
+    func string(for key: String) -> String? {
+        value(for: key) as? String
+    }
+    
+    /// Searchs for a key in the tuple array and returns its `Bool` value.
+    func bool(for key: String) -> Bool? {
+        value(for: key) as? Bool
+    }
+    
+    private func value(for name: String) -> Any? {
+        for (key, value) in self {
+            if key == name {
+                return value
+            }
+        }
+        return nil
     }
 }

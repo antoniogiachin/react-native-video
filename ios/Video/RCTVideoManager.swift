@@ -1,4 +1,5 @@
 import AVFoundation
+import RaiPlayerCMCD
 import React
 
 @objc(RCTVideoManager)
@@ -104,6 +105,24 @@ class RCTVideoManager: RCTViewManager {
     func getCurrentPosition(_ reactTag: NSNumber, resolve: @escaping RCTPromiseResolveBlock, reject: @escaping RCTPromiseRejectBlock) {
         performOnVideoView(withReactTag: reactTag, callback: { videoView in
             videoView?.getCurrentPlaybackTime(resolve, reject)
+        })
+    }
+
+    /// Call this function from React Native to update some values sent in the CMCD headers,
+    /// for example when the content changes during a live streaming ("Content ID" in CMCD-Session).
+    @objc func updateCMCD(_ reactTag: NSNumber, params: NSDictionary) {
+        let cmcd = CMCDParams.parse(from: params)
+        let contentId = cmcd?.cmcdSession.string(for: "cid")
+        
+        guard let contentId else {
+            // Missing content ID, nothing to update
+            return
+        }
+        
+        performOnVideoView(withReactTag: reactTag, callback: { videoView in
+            videoView?.cmcd?.update(CMCDUpdateModel(
+                contentId: contentId
+            ))
         })
     }
 

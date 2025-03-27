@@ -18,4 +18,5 @@ export interface VideoRef {
     enterPictureInPicture: () => void;
     exitPictureInPicture: () => void;
     nativeHtmlVideoRef?: RefObject<HTMLVideoElement>;
+    updateCMCD: (params: object) => void;
 }

@@ -12,6 +12,7 @@ export interface VideoManagerType {
     exitPictureInPictureCmd: (reactTag: number) => Promise<void>;
     save: (reactTag: Int32, option: UnsafeObject) => Promise<VideoSaveData>;
     getCurrentPosition: (reactTag: Int32) => Promise<Int32>;
+    updateCMCD: (reactTag: Int32, params: UnsafeObject) => Promise<void>;
 }
 declare const _default: VideoManagerType;
 export default _default;

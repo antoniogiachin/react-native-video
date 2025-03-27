@@ -54,7 +54,7 @@ Pod::Spec.new do |s|
       sss.source_files = "ios/Download/**/*.{h,m,swift,mm}"
     end
 
-    ss.ios.dependency 'RaiPlayerCMCD', '~> 1.4.0'
+    ss.ios.dependency 'RaiPlayerCMCD', '~> 1.4.8'
   end
 
   # Use install_modules_dependencies helper to install the dependencies if React Native version >=0.71.0.

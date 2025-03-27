@@ -540,15 +540,21 @@ class RCTVideo: UIView, RCTVideoPlayerViewControllerDelegate, RCTPlayerObserverH
             DebugLog("setSrc has been canceled last step")
             return
         }
-
-        if let player = _player, let asset = playerItem.asset as? AVURLAsset {
+        
+        // Common block to initialize CMCD, called later in this function
+        let initCMCDBlock = { [weak self] in
+            guard
+                let self,
+                let player = _player,
+                let source = _source,
+                let asset = playerItem.asset as? AVURLAsset
+            else { return }
+            
             enableNativeCMCDHeaders(for: asset)
             startCMCD(
                 with: asset.url,
                 player: player,
-                contentId: nil,
-                isLive: false,
-                headerFields: nil
+                source: source
             )
         }
 
@@ -565,7 +571,8 @@ class RCTVideo: UIView, RCTVideoPlayerViewControllerDelegate, RCTPlayerObserverH
         if _player == nil {
             _player = AVPlayer()
             ReactNativeVideoManager.shared.onInstanceCreated(id: instanceId, player: _player as Any)
-
+            
+            initCMCDBlock()
             _player!.replaceCurrentItem(with: playerItem)
 
             if _showNotificationControls {
@@ -580,6 +587,7 @@ class RCTVideo: UIView, RCTVideoPlayerViewControllerDelegate, RCTPlayerObserverH
                     self._playerViewController?.allowsVideoFrameAnalysis = false
                 }
             #endif
+            initCMCDBlock()
             _player?.replaceCurrentItem(with: playerItem)
             #if !os(tvOS) && !os(visionOS)
                 if #available(iOS 16.0, *) {
@@ -1426,43 +1434,32 @@ class RCTVideo: UIView, RCTVideoPlayerViewControllerDelegate, RCTPlayerObserverH
     // MARK: - CMCD
 
     /// CMCD manager instance.
-    private var cmcd: CMCDManager?
-
-    /// Starts the CMCD proxy server for the given content, if it's enabled on the configurator.
+    internal var cmcd: CMCDManager?
+    
+    /// Starts the CMCD proxy server for the given content, if it's enabled.
     /// - Note: This method should be called before the content is loaded.
     ///
     /// - Parameters:
     ///  - url: The URL of the content.
     ///  - player: The AVPlayer instance.
-    ///  - contentId: The content ID.
-    ///  - isLive: Whether the content is live.
-    ///  - headerFields: Additional header fields to be added to the request.
+    ///  - source: The video source info from React Native, containing the CMCD configuration.
     private func startCMCD(
         with url: URL,
-        player: AVPlayer?,
-        contentId: String?,
-        isLive: Bool,
-        headerFields: [String: String]?
+        player: AVPlayer,
+        source: VideoSource
     ) {
-//        // Disabling for downloaded content
-//        guard !isLocalFile else {
-//            return
-//        }
-        
-        // Checking AVPlayer instance
-        guard let player = _player else {
+        guard let info = source.cmcd else {
+            // Not enabled
             return
         }
         
-//        // Checking if CMCD is enabled in configurator
-//        let check = ConfigManager.shared.config?.cmcd
-//        guard check?.enabled?.ios == true else {
-//            // CMCD is not enabled
-//            return
-//        }
+        guard source.isNetwork else {
+            // Disabled for offline content
+            return
+        }
         
-        // Checking if CMCD is already running
         guard cmcd == nil else {
+            // Already running
             return
         }
         
@@ -1473,10 +1470,10 @@ class RCTVideo: UIView, RCTVideoPlayerViewControllerDelegate, RCTPlayerObserverH
         // Starting proxy server
         cmcd = CMCDManager(CMCDStartModel(
             player: player,
-            contentId: contentId,
+            contentId: info.cmcdSession.string(for: "cid"),
             fallbackUrl: fallbackUrl?.string ?? "-",
-            isLive: isLive,
-            additionalHeaders: headerFields
+            isLive: info.cmcdSession.string(for: "st") == "l",
+            additionalHeaders: nil
         ))
         
         cmcd?.start()
