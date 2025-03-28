@@ -87,4 +87,6 @@ RCT_EXTERN_METHOD(getCurrentPosition
                   : (RCTPromiseResolveBlock)resolve reject
                   : (RCTPromiseRejectBlock)reject)
 
+RCT_EXTERN_METHOD(updateCMCD : (nonnull NSNumber*)reactTag params : (nonnull NSDictionary*)params)
+
 @end

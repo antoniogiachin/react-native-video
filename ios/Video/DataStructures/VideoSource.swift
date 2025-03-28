@@ -1,6 +1,6 @@
 struct VideoSource {
     let type: String?
-    let uri: String?
+    var uri: String?
     let isNetwork: Bool
     let isAsset: Bool
     let shouldCache: Bool
@@ -13,6 +13,7 @@ struct VideoSource {
     let drm: DRMParams
     var textTracks: [TextTrack] = []
     let adParams: AdParams
+    let cmcd: CMCDParams?
 
     let json: NSDictionary?
 
@@ -31,6 +32,7 @@ struct VideoSource {
             self.customMetadata = nil
             self.drm = DRMParams(nil)
             adParams = AdParams(nil)
+            cmcd = nil
             return
         }
         self.json = json
@@ -59,5 +61,12 @@ struct VideoSource {
             return TextTrack(trackDict as? NSDictionary)
         } ?? []
         adParams = AdParams(json["ad"] as? NSDictionary)
+        cmcd = CMCDParams.parse(from: json["cmcd"] as? NSDictionary)
+    }
+}
+
+extension VideoSource {
+    mutating func changeUri(_ uri: String) {
+        self.uri = uri
     }
 }

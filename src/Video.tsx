@@ -191,7 +191,7 @@ const Video = forwardRef<VideoRef, ReactVideoProps>(
             };
 
         let _cmcd: NativeCmcdConfiguration | undefined;
-        if (Platform.OS === 'android' && source?.cmcd) {
+        if (source?.cmcd) {
           const cmcd = source.cmcd;
 
           if (typeof cmcd === 'boolean') {
@@ -452,6 +452,17 @@ const Video = forwardRef<VideoRef, ReactVideoProps>(
       return NativeVideoManager.save?.(getReactTag(nativeRef), options);
     }, []);
 
+    const updateCMCD = useCallback((params: object) => {
+      if (Platform.OS !== 'ios') {
+        // This feature is only available in ios
+        return;
+      }
+      NativeVideoManager.updateCMCD(
+        getReactTag(nativeRef),
+        params
+      );
+    }, []);
+
     const getCurrentPosition = useCallback(() => {
       // @todo Must implement it in a different way.
       return NativeVideoManager.getCurrentPosition(getReactTag(nativeRef));
@@ -694,6 +705,7 @@ const Video = forwardRef<VideoRef, ReactVideoProps>(
         enterPictureInPicture,
         exitPictureInPicture,
         setSource,
+        updateCMCD,
       }),
       [
         seek,
@@ -709,6 +721,7 @@ const Video = forwardRef<VideoRef, ReactVideoProps>(
         enterPictureInPicture,
         exitPictureInPicture,
         setSource,
+        updateCMCD,
       ],
     );
 

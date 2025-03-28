@@ -5,6 +5,7 @@ import Foundation
     import GoogleInteractiveMediaAds
 #endif
 import React
+import RaiPlayerCMCD
 
 // MARK: - RCTVideo
 
@@ -466,7 +467,7 @@ class RCTVideo: UIView, RCTVideoPlayerViewControllerDelegate, RCTPlayerObserverH
     // MARK: - Player and source
 
     func preparePlayerItem() async throws -> AVPlayerItem {
-        guard let source = _source else {
+        guard var source = _source else {
             DebugLog("The source not exist")
             isSetSourceOngoing = false
             applyNextSource()
@@ -489,13 +490,13 @@ class RCTVideo: UIView, RCTVideoPlayerViewControllerDelegate, RCTPlayerObserverH
             return await playerItemPrepareText(source: source, asset: photoAsset, assetOptions: nil, uri: source.uri ?? "")
         }
 
-        guard let assetResult = RCTVideoUtils.prepareAsset(source: source),
-              let asset = assetResult.asset,
-              let assetOptions = assetResult.assetOptions else {
-            DebugLog("Could not find video URL in source '\(String(describing: _source))'")
-            isSetSourceOngoing = false
-            applyNextSource()
-            throw NSError(domain: "", code: 0, userInfo: nil)
+        if
+            let cmcd,
+            let originalUrl = URL(string: source.uri ?? ""),
+            let proxiedUrl = cmcd.proxiedUrl(originalUrl)
+        {
+            // Applying CMCD asset uri
+            source.changeUri(proxiedUrl.absoluteString)
         }
 
         guard let assetResult = RCTVideoUtils.prepareAsset(source: source),
@@ -539,6 +540,23 @@ class RCTVideo: UIView, RCTVideoPlayerViewControllerDelegate, RCTPlayerObserverH
             DebugLog("setSrc has been canceled last step")
             return
         }
+        
+        // Common block to initialize CMCD, called later in this function
+        let initCMCDBlock = { [weak self] in
+            guard
+                let self,
+                let player = _player,
+                let source = _source,
+                let asset = playerItem.asset as? AVURLAsset
+            else { return }
+            
+            enableNativeCMCDHeaders(for: asset)
+            startCMCD(
+                with: asset.url,
+                player: player,
+                source: source
+            )
+        }
 
         _player?.pause()
         _playerItem = playerItem
@@ -553,7 +571,8 @@ class RCTVideo: UIView, RCTVideoPlayerViewControllerDelegate, RCTPlayerObserverH
         if _player == nil {
             _player = AVPlayer()
             ReactNativeVideoManager.shared.onInstanceCreated(id: instanceId, player: _player as Any)
-
+            
+            initCMCDBlock()
             _player!.replaceCurrentItem(with: playerItem)
 
             if _showNotificationControls {
@@ -568,6 +587,7 @@ class RCTVideo: UIView, RCTVideoPlayerViewControllerDelegate, RCTPlayerObserverH
                     self._playerViewController?.allowsVideoFrameAnalysis = false
                 }
             #endif
+            initCMCDBlock()
             _player?.replaceCurrentItem(with: playerItem)
             #if !os(tvOS) && !os(visionOS)
                 if #available(iOS 16.0, *) {
@@ -1391,6 +1411,7 @@ class RCTVideo: UIView, RCTVideoPlayerViewControllerDelegate, RCTPlayerObserverH
         _player = nil
         _drmManager = nil
         _playerObserver.clearPlayer()
+        cmcd = nil
 
         self.removePlayerLayer()
 
@@ -1408,6 +1429,62 @@ class RCTVideo: UIView, RCTVideoPlayerViewControllerDelegate, RCTPlayerObserverH
         NotificationCenter.default.removeObserver(self)
 
         super.removeFromSuperview()
+    }
+
+    // MARK: - CMCD
+
+    /// CMCD manager instance.
+    internal var cmcd: CMCDManager?
+    
+    /// Starts the CMCD proxy server for the given content, if it's enabled.
+    /// - Note: This method should be called before the content is loaded.
+    ///
+    /// - Parameters:
+    ///  - url: The URL of the content.
+    ///  - player: The AVPlayer instance.
+    ///  - source: The video source info from React Native, containing the CMCD configuration.
+    private func startCMCD(
+        with url: URL,
+        player: AVPlayer,
+        source: VideoSource
+    ) {
+        guard let info = source.cmcd else {
+            // Not enabled
+            return
+        }
+        
+        guard source.isNetwork else {
+            // Disabled for offline content
+            return
+        }
+        
+        guard cmcd == nil else {
+            // Already running
+            return
+        }
+        
+        // Removing query string
+        var fallbackUrl = URLComponents(url: url, resolvingAgainstBaseURL: false)
+        fallbackUrl?.query = nil
+        
+        // Starting proxy server
+        cmcd = CMCDManager(CMCDStartModel(
+            player: player,
+            contentId: info.cmcdSession.string(for: "cid"),
+            fallbackUrl: fallbackUrl?.string ?? "-",
+            isLive: info.cmcdSession.string(for: "st") == "l",
+            additionalHeaders: nil
+        ))
+        
+        cmcd?.start()
+    }
+
+    /// Enables automatic CMCD headers from iOS 18 for the given asset.
+    private func enableNativeCMCDHeaders(for asset: AVURLAsset) {
+        if #available(iOS 18.0, *) {
+            // Enabling iOS 18 automatic CMCD headers for `AVPlayer`
+            asset.resourceLoader.sendsCommonMediaClientDataAsHTTPHeaders = true
+        }
     }
 
     // MARK: - Export
